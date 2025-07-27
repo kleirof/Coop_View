@@ -526,7 +526,6 @@ namespace CoopView
                 SetScreenMode(FullscreenMode.WINDOWED);
                 RestoreMainWindowCaption();
                 mainWindowFullscreenStatus = false;
-                GameManager.Instance.StartCoroutine(ViewController.OnUpdateResolution());
                 ETGModConsole.Log($"Successfully switched main window to windowed, window size = {width}x{height}.");
             }
             else
@@ -807,6 +806,7 @@ namespace CoopView
                 CopyWindowIcon();
 
                 SetWindowPos(window, IntPtr.Zero, left, top, fullWidth, fullHeight, SWP_FRAMECHANGED);
+                SetWindowPos(window, IntPtr.Zero, left, top, fullWidth, fullHeight, SWP_FRAMECHANGED);
                 secondWindowFullscreenStatus = false;
 
                 SetScreenMode(FullscreenMode.WINDOWED);
@@ -874,6 +874,7 @@ namespace CoopView
 
                 SetWindowLongPtr(window, GWL_STYLE, (IntPtr)style);
 
+                SetWindowPos(window, IntPtr.Zero, left, top, fullWidth, fullHeight, SWP_FRAMECHANGED);
                 SetWindowPos(window, IntPtr.Zero, left, top, fullWidth, fullHeight, SWP_FRAMECHANGED);
                 mainWindowFullscreenStatus = false;
                 if (unpause)
