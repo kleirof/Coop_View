@@ -101,6 +101,8 @@ namespace CoopView
             {
                 OptionsManager.OnStart();
 
+                QualitySettings.vSyncCount = 0;
+                Application.targetFrameRate = -1;
                 Display.displays[1].Activate(WindowManager.startupWidth, WindowManager.startupHeight, 0);
                 WindowManager.SetSecondWindowText();
 
