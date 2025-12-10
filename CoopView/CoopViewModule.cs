@@ -11,7 +11,7 @@ namespace CoopView
     {
         public const string GUID = "kleirof.etg.coopview";
         public const string NAME = "Coop View";
-        public const string VERSION = "1.0.9";
+        public const string VERSION = "1.0.10";
         public const string TEXT_COLOR = "#CCFF33";
 
         private GameObject coopViewObject;

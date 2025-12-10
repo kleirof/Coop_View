@@ -799,7 +799,7 @@ namespace CoopView
                             color = new Color(0.402f, 0.111f, 0.32f);
                     }
 
-                    Vector2 mousePosition = RawInputHandler.firstMousePosition;
+                    Vector2 mousePosition = RawInputHandler.FirstMousePosition;
                     Vector2 vector = new Vector2((float)texture2D.width, (float)texture2D.height) * (float)((!(Pixelator.Instance != null)) ? 3 : ((int)Pixelator.Instance.ScaleTileScale)) * scale;
                     Rect screenRect = new Rect((mousePosition.x + 0.5f - vector.x / 2f - Screen.width / 2) * WindowManager.referenceSecondWindowWidth / Screen.width, (mousePosition.y + 0.5f - vector.y / 2f - Screen.height / 2) * WindowManager.referenceSecondWindowHeight / Screen.height,
                         vector.x * WindowManager.referenceSecondWindowWidth / Screen.width, vector.y * WindowManager.referenceSecondWindowHeight / Screen.height);
@@ -851,13 +851,13 @@ namespace CoopView
 
                         Vector2 mousePosition;
                         if (!CoopKBnM.OptionsManager.restrictMouseInputPort)
-                            mousePosition = RawInputHandler.firstMousePosition;
+                            mousePosition = RawInputHandler.FirstMousePosition;
                         else
                         {
                             if (CoopKBnM.OptionsManager.isPrimaryPlayerOnMainCamera)
-                                mousePosition = CoopKBnM.OptionsManager.currentPlayerOneMousePort == 0 ? RawInputHandler.secondMousePosition : RawInputHandler.firstMousePosition;
+                                mousePosition = CoopKBnM.OptionsManager.currentPlayerOneMousePort == 0 ? RawInputHandler.SecondMousePosition : RawInputHandler.FirstMousePosition;
                             else
-                                mousePosition = CoopKBnM.OptionsManager.currentPlayerOneMousePort != 0 ? RawInputHandler.secondMousePosition : RawInputHandler.firstMousePosition;
+                                mousePosition = CoopKBnM.OptionsManager.currentPlayerOneMousePort != 0 ? RawInputHandler.SecondMousePosition : RawInputHandler.FirstMousePosition;
                         }
 
                         Vector2 vector = new Vector2((float)texture2D.width, (float)texture2D.height) * (float)((!(Pixelator.Instance != null)) ? 3 : ((int)Pixelator.Instance.ScaleTileScale)) * scale;

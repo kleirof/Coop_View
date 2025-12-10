@@ -123,9 +123,9 @@ namespace CoopView
                 if (CoopKBnM.OptionsManager.restrictMouseInputPort)
                 {
                     if (CoopKBnM.OptionsManager.currentPlayerOneMousePort == 0)
-                        return !self.m_player.IsPrimaryPlayer ? RawInputHandler.secondMousePosition.ToVector3ZUp(0f) : orig;
+                        return !self.m_player.IsPrimaryPlayer ? RawInputHandler.SecondMousePosition.ToVector3ZUp(0f) : orig;
                     else
-                        return !self.m_player.IsPrimaryPlayer ? orig : RawInputHandler.secondMousePosition.ToVector3ZUp(0f);
+                        return !self.m_player.IsPrimaryPlayer ? orig : RawInputHandler.SecondMousePosition.ToVector3ZUp(0f);
                 }
                 else
                     return orig;
