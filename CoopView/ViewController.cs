@@ -571,15 +571,26 @@ namespace CoopView
             }
         }
 
+        private static void ClearRenderTexture(RenderTexture rt)
+        {
+            if (rt == null) return;
+            RenderTexture.active = rt;
+            GL.Clear(true, true, Color.black);
+            GL.Flush();
+            RenderTexture.active = null;
+        }
+
         private IEnumerator ClearCaches()
         {
-            RenderTexture.active = renderTexture;
-            GL.Clear(true, true, Color.black);
-            RenderTexture.active = null;
+            ClearRenderTexture(renderTexture);
+            ClearRenderTexture(uiRenderTexture);
 
-            RenderTexture.active = uiRenderTexture;
-            GL.Clear(true, true, Color.black);
-            RenderTexture.active = null;
+            yield return null;
+
+            if (renderTexture != null)
+                renderTexture.DiscardContents();
+            if (uiRenderTexture != null)
+                uiRenderTexture.DiscardContents();
 
             yield return null;
 
