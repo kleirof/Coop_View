@@ -573,7 +573,8 @@ namespace CoopView
 
         private static void ClearRenderTexture(RenderTexture rt)
         {
-            if (rt == null) return;
+            if (rt == null)
+                return;
             RenderTexture.active = rt;
             GL.Clear(true, true, Color.black);
             GL.Flush();

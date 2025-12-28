@@ -589,9 +589,20 @@ namespace CoopView
             }
         }
 
-        [HarmonyPatch(typeof(PlayerController), nameof(PlayerController.PitRespawn), MethodType.Enumerator)]
+        [HarmonyPatch(typeof(PlayerController), nameof(PlayerController.PitRespawn))]
         public class PitRespawnPatchClass
         {
+            public static readonly Dictionary<PlayerController, IEnumerator> runningPitRespawn = new Dictionary<PlayerController, IEnumerator>(2);
+
+            [HarmonyPostfix]
+            static void PitRespawnPostfix(PlayerController __instance, IEnumerator __result)
+            {
+                if (__result == null)
+                    return;
+
+                runningPitRespawn[__instance] = __result;
+            }
+
             [HarmonyILManipulator]
             public static void PitRespawnPatch(ILContext ctx)
             {
@@ -601,14 +612,28 @@ namespace CoopView
                     x => x.MatchCallvirt<GameManager>("get_MainCameraController")))
                 {
                     crs.Emit(OpCodes.Ldarg_0);
-                    crs.EmitCall<PitRespawnPatchClass>(nameof(PitRespawnPatchClass.PitRespawnPatchCall));
+                    crs.EmitCall<PitRespawnPatchClass>(nameof(PitRespawnPatchClass.PitRespawnPatchCall_1));
+                }
+                crs.Index = 0;
+
+                if (crs.TryGotoNext(MoveType.After,
+                    x => x.MatchCallvirt<OverridableBool>("get_Value")))
+                {
+                    crs.EmitCall<PitRespawnPatchClass>(nameof(PitRespawnPatchClass.PitRespawnPatchCall_2));
                 }
             }
 
-            private static CameraController PitRespawnPatchCall(CameraController orig, object selfObject)
+            private static CameraController PitRespawnPatchCall_1(CameraController orig, object selfObject)
             {
                 PlayerController self = GetFieldInEnumerator<PlayerController>(selfObject, "this");
                 return ViewController.GetCameraControllerForPlayer(self, orig);
+            }
+
+            private static bool PitRespawnPatchCall_2(bool orig)
+            {
+                if (GameManager.HasInstance && GameManager.Instance.IsLoadingLevel)
+                    return true;
+                return orig;
             }
         }
 
@@ -767,7 +792,6 @@ namespace CoopView
                             num2 += 0.5f;
                         Vector3 b = new Vector3(playerController.specRigidbody.UnitCenter.x - playerController.transform.position.x + num, playerController.SpriteDimensions.y + num2, 0f);
 
-                        //
                         if (ViewController.camera != null && ViewController.originalCamera != null)
                             b += -ViewController.camera.transform.localPosition + ViewController.originalCamera.transform.localPosition;
 
@@ -1375,8 +1399,74 @@ namespace CoopView
                     DoScreenShakePatchClass_1.avoidSecondCameraShake = false;
 
                     ViewController.additionalRenderMaterials.Clear();
+
+                    GameManager gameManager = GameManager.HasInstance ? GameManager.Instance : null;
+                    if (gameManager == null)
+                        return;
+
+                    InterruptPitRespawn(gameManager.PrimaryPlayer);
+
+                    if (gameManager.CurrentGameType == GameManager.GameType.COOP_2_PLAYER)
+                        InterruptPitRespawn(gameManager.SecondaryPlayer);
+
+                    PitRespawnPatchClass.runningPitRespawn.Clear();
                 }
             }
+
+            private static void InterruptPitRespawn(PlayerController player)
+            {
+                if (player == null)
+                    return;
+
+                IEnumerator pitRespawnCoroutine;
+                if (PitRespawnPatchClass.runningPitRespawn.TryGetValue(player, out pitRespawnCoroutine))
+                {
+                    player.StopCoroutine(pitRespawnCoroutine);
+                    PitRespawnPatchClass.runningPitRespawn.Remove(player);
+                }
+
+                RestorePlayerAfterPitInterrupt(player);
+            }
+
+            private static void RestorePlayerAfterPitInterrupt(PlayerController player)
+            {
+                try
+                {
+                    player.m_isFalling = false;
+                    player.m_interruptingPitRespawn = false;
+                    player.m_skipPitRespawn = false;
+
+                    player.m_renderer.enabled = true;
+                    SpriteOutlineManager.ToggleOutlineRenderers(player.sprite, true);
+
+                    if (player.ShadowObject != null)
+                        player.ShadowObject.GetComponent<Renderer>().enabled = true;
+
+                    player.gameObject.SetLayerRecursively(LayerMask.NameToLayer("FG_Reflection"));
+                    SpriteOutlineManager.ToggleOutlineRenderers(player.sprite, true);
+
+                    player.ToggleShadowVisiblity(true);
+
+                    if (player.healthHaver != null && player.healthHaver.IsAlive)
+                    {
+                        player.ToggleGunRenderers(true, string.Empty);
+                        player.ToggleHandRenderers(true, string.Empty);
+                    }
+
+                    player.CurrentInputState = PlayerInputState.AllInput;
+
+                    SpeculativeRigidbody rigidbody = player.specRigidbody;
+                    rigidbody.CollideWithTileMap = true;
+                    rigidbody.CollideWithOthers = true;
+                    rigidbody.Velocity = Vector2.zero;
+                    rigidbody.Reinitialize();
+                }
+                catch (Exception ex)
+                {
+                    Debug.Log("RestorePlayerAfterPitInterrupt Catched: " + ex.Message);
+                }
+            }
+
         }
 
         [HarmonyPatch(typeof(BossKillCam), nameof(BossKillCam.InvariantUpdate))]
@@ -3159,6 +3249,16 @@ namespace CoopView
                     }
                 }
                 return orig;
+            }
+        }
+
+        [HarmonyPatch(typeof(GameManager), nameof(GameManager.SecondaryPlayer), MethodType.Setter)]
+        public class SetSecondaryPlayerPatchClass
+        {
+            [HarmonyPostfix]
+            public static void SetSecondaryPlayerPostfix()
+            {
+                GameManager.Instance.StartCoroutine(ViewController.UpdatePlayerAndCameraBindings());
             }
         }
     }
