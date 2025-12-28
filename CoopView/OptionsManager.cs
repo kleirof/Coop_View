@@ -29,14 +29,7 @@ namespace CoopView
 
         internal static void OnStart()
         {
-            try
-            {
-                CoopViewPreferences.LoadPreferences();
-            }
-            catch (Exception e)
-            {
-                Debug.LogError("Failed to load Coop View Preferences." + e);
-            }
+            CoopViewPreferences.LoadPreferences();
         }
 
         internal static IEnumerator InitializeOptions()

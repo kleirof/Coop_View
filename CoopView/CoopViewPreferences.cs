@@ -1,4 +1,6 @@
-﻿using System.IO;
+﻿using BepInEx;
+using System;
+using System.IO;
 using UnityEngine;
 
 namespace CoopView
@@ -17,32 +19,51 @@ namespace CoopView
 			public int playerOneCamera;
 		}
 
-		private const string fileName = "CoopView_Preferences.txt";
+		private const string fileName = "CoopView_Preferences.txt"; 
+		private static string filePath = null;
+		private static string FilePath
+		{
+			get
+			{
+				if (filePath == null)
+				{
+					filePath = Path.Combine(Paths.ConfigPath, fileName);
+				}
+				return filePath;
+			}
+		}
 
 		internal static void LoadPreferences()
 		{
-			if (File.Exists(Path.Combine(ETGMod.ResourcesDirectory, fileName)))
+			try
 			{
-				string json = File.ReadAllText(Path.Combine(ETGMod.ResourcesDirectory, fileName));
-				PreferencesData settingsData = ScriptableObject.CreateInstance<PreferencesData>();
-				JsonUtility.FromJsonOverwrite(json, settingsData);
-				OptionsManager.secondWindowStartupResolution = settingsData.secondWindowStartupResolution;
-				OptionsManager.playerOneCamera = settingsData.playerOneCamera;
-				return;
+				if (File.Exists(FilePath))
+				{
+					string json = File.ReadAllText(FilePath);
+					PreferencesData settingsData = ScriptableObject.CreateInstance<PreferencesData>();
+					JsonUtility.FromJsonOverwrite(json, settingsData);
+					OptionsManager.secondWindowStartupResolution = settingsData.secondWindowStartupResolution;
+					OptionsManager.playerOneCamera = settingsData.playerOneCamera;
+					return;
+				}
+				SavePreferences();
+            }
+            catch (Exception ex)
+            {
+				Debug.LogError($"Failed to load Coop View Preferences: {ex.Message}");
 			}
-			SavePreferences();
 		}
 
 		internal static void SavePreferences()
 		{
-			string text = JsonUtility.ToJson(ScriptableObject.CreateInstance<PreferencesData>(), true);
-			if (File.Exists(Path.Combine(ETGMod.ResourcesDirectory, fileName)))
+			try
 			{
-				File.Delete(Path.Combine(ETGMod.ResourcesDirectory, fileName));
+				string text = JsonUtility.ToJson(ScriptableObject.CreateInstance<PreferencesData>(), true);
+				File.WriteAllText(FilePath, text);
 			}
-			using (StreamWriter streamWriter = new StreamWriter(Path.Combine(ETGMod.ResourcesDirectory, fileName), true))
-			{
-				streamWriter.WriteLine(text);
+			catch (Exception ex)
+            {
+				Debug.LogError($"Failed to save Coop View Preferences: {ex.Message}");
 			}
 		}
 	}
