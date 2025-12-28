@@ -17,6 +17,8 @@ namespace CoopView
         private static bool bossKillCamIsRunning = false;
         private static bool bossIntroCamIsRunning = false;
 
+        public static readonly Dictionary<PlayerController, IEnumerator> runningPitRespawn = new Dictionary<PlayerController, IEnumerator>(2);
+
         public static void EmitCall<T>(this ILCursor iLCursor, string methodName, Type[] parameters = null, Type[] generics = null)
         {
             MethodInfo methodInfo = AccessTools.Method(typeof(T), methodName, parameters, generics);
@@ -589,11 +591,22 @@ namespace CoopView
             }
         }
 
-        [HarmonyPatch(typeof(PlayerController), nameof(PlayerController.PitRespawn))]
-        public class PitRespawnPatchClass
+        [HarmonyPatch(typeof(PlayerController), nameof(PlayerController.FallDownCR))]
+        public class FallDownCRPatchClass
         {
-            public static readonly Dictionary<PlayerController, IEnumerator> runningPitRespawn = new Dictionary<PlayerController, IEnumerator>(2);
+            [HarmonyPostfix]
+            static void FallDownCRPostfix(PlayerController __instance, IEnumerator __result)
+            {
+                if (__result == null)
+                    return;
 
+                runningPitRespawn[__instance] = __result;
+            }
+        }
+
+        [HarmonyPatch(typeof(PlayerController), nameof(PlayerController.PitRespawn))]
+        public class PitRespawnFactoryPatchClass
+        {
             [HarmonyPostfix]
             static void PitRespawnPostfix(PlayerController __instance, IEnumerator __result)
             {
@@ -602,7 +615,11 @@ namespace CoopView
 
                 runningPitRespawn[__instance] = __result;
             }
+        }
 
+        [HarmonyPatch(typeof(PlayerController), nameof(PlayerController.PitRespawn), MethodType.Enumerator)]
+        public class PitRespawnPatchClass
+        {
             [HarmonyILManipulator]
             public static void PitRespawnPatch(ILContext ctx)
             {
@@ -619,6 +636,7 @@ namespace CoopView
                 if (crs.TryGotoNext(MoveType.After,
                     x => x.MatchCallvirt<OverridableBool>("get_Value")))
                 {
+                    crs.Emit(OpCodes.Ldarg_0);
                     crs.EmitCall<PitRespawnPatchClass>(nameof(PitRespawnPatchClass.PitRespawnPatchCall_2));
                 }
             }
@@ -629,9 +647,15 @@ namespace CoopView
                 return ViewController.GetCameraControllerForPlayer(self, orig);
             }
 
-            private static bool PitRespawnPatchCall_2(bool orig)
+            private static bool PitRespawnPatchCall_2(bool orig, object selfObject)
             {
-                if (GameManager.HasInstance && GameManager.Instance.IsLoadingLevel)
+                if (!GameManager.HasInstance)
+                    return orig;
+                if (GameManager.Instance.IsLoadingLevel || GameManager.Instance.IsFoyer)
+                    return true;
+                PlayerController self = GetFieldInEnumerator<PlayerController>(selfObject, "this");
+                var spriteAnimator = GameManager.Instance.GetOtherPlayer(self).spriteAnimator;
+                if (spriteAnimator != null && spriteAnimator.IsPlaying("doorway"))
                     return true;
                 return orig;
             }
@@ -1399,18 +1423,18 @@ namespace CoopView
                     DoScreenShakePatchClass_1.avoidSecondCameraShake = false;
 
                     ViewController.additionalRenderMaterials.Clear();
-
-                    GameManager gameManager = GameManager.HasInstance ? GameManager.Instance : null;
-                    if (gameManager == null)
-                        return;
-
-                    InterruptPitRespawn(gameManager.PrimaryPlayer);
-
-                    if (gameManager.CurrentGameType == GameManager.GameType.COOP_2_PLAYER)
-                        InterruptPitRespawn(gameManager.SecondaryPlayer);
-
-                    PitRespawnPatchClass.runningPitRespawn.Clear();
                 }
+
+                GameManager gameManager = GameManager.HasInstance ? GameManager.Instance : null;
+                if (gameManager == null)
+                    return;
+
+                InterruptPitRespawn(gameManager.PrimaryPlayer);
+
+                if (gameManager.CurrentGameType == GameManager.GameType.COOP_2_PLAYER)
+                    InterruptPitRespawn(gameManager.SecondaryPlayer);
+
+                runningPitRespawn.Clear();
             }
 
             private static void InterruptPitRespawn(PlayerController player)
@@ -1419,10 +1443,10 @@ namespace CoopView
                     return;
 
                 IEnumerator pitRespawnCoroutine;
-                if (PitRespawnPatchClass.runningPitRespawn.TryGetValue(player, out pitRespawnCoroutine))
+                if (runningPitRespawn.TryGetValue(player, out pitRespawnCoroutine))
                 {
                     player.StopCoroutine(pitRespawnCoroutine);
-                    PitRespawnPatchClass.runningPitRespawn.Remove(player);
+                    runningPitRespawn.Remove(player);
                 }
 
                 RestorePlayerAfterPitInterrupt(player);
@@ -3252,11 +3276,31 @@ namespace CoopView
             }
         }
 
+        [HarmonyPatch(typeof(GameManager), nameof(GameManager.PrimaryPlayer), MethodType.Setter)]
+        public class PrimaryPlayerPatchClass
+        {
+            [HarmonyPostfix]
+            public static void SetPrimaryPlayerPostfix()
+            {
+                GameManager.Instance.StartCoroutine(ViewController.UpdatePlayerAndCameraBindings());
+            }
+        }
+
         [HarmonyPatch(typeof(GameManager), nameof(GameManager.SecondaryPlayer), MethodType.Setter)]
         public class SetSecondaryPlayerPatchClass
         {
             [HarmonyPostfix]
             public static void SetSecondaryPlayerPostfix()
+            {
+                GameManager.Instance.StartCoroutine(ViewController.UpdatePlayerAndCameraBindings());
+            }
+        }
+
+        [HarmonyPatch(typeof(Foyer), nameof(Foyer.PlayerCharacterChanged))]
+        public class PlayerCharacterChangedPatchClass
+        {
+            [HarmonyPostfix]
+            public static void PlayerCharacterChangedPostfix()
             {
                 GameManager.Instance.StartCoroutine(ViewController.UpdatePlayerAndCameraBindings());
             }
