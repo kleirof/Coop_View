@@ -309,7 +309,7 @@ namespace CoopView
 
                 if (ammoCamera == null)
                 {
-                    GameObject ammoRootObject = GameObject.Find("Ammonomicon Root(Clone)");
+                    GameObject ammoRootObject = AmmonomiconController.ForceInstance?.gameObject?.transform?.parent?.gameObject;
                     if (ammoRootObject != null)
                     {
                         ammoCamera = ammoRootObject.GetComponentInChildren<Camera>();
