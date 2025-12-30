@@ -651,10 +651,13 @@ namespace CoopView
             {
                 if (!GameManager.HasInstance)
                     return orig;
-                if (GameManager.Instance.IsLoadingLevel || GameManager.Instance.IsFoyer)
+                var gameManager = GameManager.Instance;
+                if (gameManager.CurrentGameType != GameManager.GameType.COOP_2_PLAYER)
+                    return orig;
+                if (gameManager.IsLoadingLevel || gameManager.IsFoyer)
                     return true;
                 PlayerController self = GetFieldInEnumerator<PlayerController>(selfObject, "this");
-                var spriteAnimator = GameManager.Instance.GetOtherPlayer(self).spriteAnimator;
+                var spriteAnimator = gameManager.GetOtherPlayer(self)?.spriteAnimator;
                 if (spriteAnimator != null && spriteAnimator.IsPlaying("doorway"))
                     return true;
                 return orig;
