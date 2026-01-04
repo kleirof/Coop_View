@@ -22,10 +22,6 @@ namespace CoopView
         private static RawImage uiRawImage;
         internal static RenderTexture uiRenderTexture;
 
-        private static GameObject maskRawImageObject;
-        private static RawImage maskRawImage;
-        internal static RenderTexture maskRenderTexture;
-
         internal static Pixelator originCameraPixelator;
         internal static Pixelator cameraPixelator;
 
@@ -51,7 +47,7 @@ namespace CoopView
         private static GameUIReloadBarController coopReloadBarController;
         private static dfGUIManager uiManager;
 
-        private static GameCursorController gameCursorController;
+        internal static GameCursorController gameCursorController;
 
         internal static BraveOptionsMenuItem resolutionOptionsMenuItem;
         internal static BraveOptionsMenuItem screenModeOptionsMenuItem;
@@ -65,10 +61,6 @@ namespace CoopView
         internal static int secondWindowPixelHeight;
 
         internal static bool secondWindowActive = false;
-
-        internal static AssetBundle coopViewAssets;
-        private static Shader maskShader;
-        private static Material maskMaterial;
 
         internal static bool waitingForRestoringCaption = true;
 
@@ -95,6 +87,16 @@ namespace CoopView
 
         internal static Dictionary<object, Material> additionalRenderMaterials = new Dictionary<object, Material>();
 
+        private static Camera secondWindowClearCamera;
+
+        internal static Canvas simpleStatsCanvas;
+        internal static Camera uiMainDisplayCamera;
+        internal static Camera uiSecondDisplayCamera;
+        private static WorldCursorController worldCursorController;
+        private static GameObject worldCursorObject;
+
+        internal static bool simplestatsLoaded;
+
         public void Start()
         {
             if (Display.displays.Length > 1)
@@ -118,23 +120,62 @@ namespace CoopView
                     CoopKBnMModule.secondWindowActive = true;
                 }
 
-                canvasObject = new GameObject("Overlay Canvas");
+                canvasObject = new GameObject("Coop View Canvas");
                 DontDestroyOnLoad(canvasObject);
+
                 canvas = canvasObject.AddComponent<Canvas>();
-                canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-                canvas.targetDisplay = 1;
-                canvas.sortingOrder = 1;
+                canvas.renderMode = RenderMode.WorldSpace;
+
+                int wsLayer = 31;
+                canvas.gameObject.layer = wsLayer;
+
+                RectTransform rt = canvas.GetComponent<RectTransform>();
+                rt.sizeDelta = new Vector2(1920, 1080);
+
+                canvas.transform.position = new Vector3(0, 0, -100);
+
+                GameObject canvasCameraObject = new GameObject("Coop View Canvas Camera");
+                DontDestroyOnLoad(canvasCameraObject);
+
+                Camera canvasCamera = canvasCameraObject.AddComponent<Camera>();
+                canvasCamera.targetDisplay = 1;
+                canvasCamera.orthographic = true;
+                canvasCamera.orthographicSize = 540;
+                canvasCamera.clearFlags = CameraClearFlags.Depth;
+                canvasCamera.backgroundColor = Color.clear;
+                canvasCamera.cullingMask = 1 << wsLayer;
+                canvasCamera.depth = 1000;
+                canvasCamera.nearClipPlane = 0.01f;
+                canvasCamera.farClipPlane = 1000f;
+
+                canvasCamera.transform.position = new Vector3(0, 0, -200);
+                canvasCamera.transform.rotation = Quaternion.identity;
+
+                Camera mainCam = Camera.main;
+                if (mainCam != null)
+                    mainCam.cullingMask &= ~(1 << wsLayer);
+
+                GameObject clearCameraObject = new GameObject("Coop View Clear Camera");
+                DontDestroyOnLoad(clearCameraObject);
+
+                secondWindowClearCamera = clearCameraObject.AddComponent<Camera>();
+
+                secondWindowClearCamera.targetDisplay = 1;
+                secondWindowClearCamera.rect = new Rect(0, 0, 1, 1);
+                secondWindowClearCamera.clearFlags = CameraClearFlags.SolidColor;
+                secondWindowClearCamera.backgroundColor = Color.black;
+                secondWindowClearCamera.cullingMask = 0;
+                secondWindowClearCamera.depth = -10000f;
+                secondWindowClearCamera.useOcclusionCulling = false;
+                secondWindowClearCamera.allowHDR = false;
+                secondWindowClearCamera.allowMSAA = false;
+                secondWindowClearCamera.orthographic = true;
+                secondWindowClearCamera.orthographicSize = 1;
+                secondWindowClearCamera.nearClipPlane = 0.01f;
+                secondWindowClearCamera.farClipPlane = 100f;
 
                 WindowManager.InitWindowHook();
                 ShortcutKeyHandler.InitMessageHandler();
-
-                using (Stream s = Assembly.GetExecutingAssembly().GetManifestResourceStream("CoopView.coopview_assets"))
-                {
-                    coopViewAssets = AssetBundle.LoadFromStream(s);
-                }
-
-                maskShader = coopViewAssets.LoadAsset<Shader>("MaskRenderTextureRegion");
-                maskMaterial = new Material(maskShader);
 
                 ChangeMouseSensitivityMultipliers();
             }
@@ -241,16 +282,7 @@ namespace CoopView
 
                         if (secondWindowActive)
                         {
-                            if ((float)9 / 16 < ((float)WindowManager.SecondWindowHeight / (float)WindowManager.SecondWindowWidth))
-                            {
-                                secondWindowPixelWidth = WindowManager.SecondWindowWidth;
-                                secondWindowPixelHeight = (int)(WindowManager.SecondWindowWidth * (float)9 / 16);
-                            }
-                            else
-                            {
-                                secondWindowPixelWidth = (int)(WindowManager.SecondWindowHeight * (float)16 / 9);
-                                secondWindowPixelHeight = WindowManager.SecondWindowHeight;
-                            }
+                            UpdateSecondWindowPixelSize();
                         }
                         clearable = true;
                     }
@@ -317,62 +349,64 @@ namespace CoopView
                     }
                 }
 
+                if (worldCursorController == null)
+                {
+                    worldCursorObject = new GameObject("WorldCursor");
+                    DontDestroyOnLoad(worldCursorObject);
+                    worldCursorObject.layer = LayerMask.NameToLayer("Default");
+
+                    worldCursorController = worldCursorObject.AddComponent<WorldCursorController>();
+                }
+
                 if (secondWindowActive && (rawImageObject == null || uiRawImageObject == null))
                 {
-                    if ((float)9 / 16 < ((float)WindowManager.SecondWindowHeight / (float)WindowManager.SecondWindowWidth))
-                    {
-                        secondWindowPixelWidth = WindowManager.SecondWindowWidth;
-                        secondWindowPixelHeight = (int)(WindowManager.SecondWindowWidth * (float)9 / 16);
-                    }
-                    else
-                    {
-                        secondWindowPixelWidth = (int)(WindowManager.SecondWindowHeight * (float)16 / 9);
-                        secondWindowPixelHeight = WindowManager.SecondWindowHeight;
-                    }
+                    UpdateSecondWindowPixelSize();
 
                     renderTexture = new RenderTexture(WindowManager.startupWidth, WindowManager.startupHeight, 0, RenderTextureFormat.ARGB32);
                     renderTexture.enableRandomWrite = true;
+                    renderTexture.filterMode = FilterMode.Point;
+                    renderTexture.useMipMap = false;
                     renderTexture.Create();
 
                     rawImageObject = new GameObject("rawImage");
                     DontDestroyOnLoad(rawImageObject);
                     rawImageObject.transform.SetParent(canvasObject.transform);
+                    rawImageObject.gameObject.layer = canvasObject.gameObject.layer;
+                    rawImageObject.transform.position = canvasObject.transform.position.WithZ(-100f);
                     rawImage = rawImageObject.AddComponent<RawImage>();
                     RectTransform rectTransform = rawImageObject.GetComponent<RectTransform>();
-                    rectTransform.sizeDelta = new Vector2((int)(secondWindowPixelWidth * WindowManager.referenceSecondWindowWidth / WindowManager.SecondWindowWidth), (int)(secondWindowPixelHeight * WindowManager.referenceSecondWindowHeight / WindowManager.SecondWindowHeight));
+                    rectTransform.sizeDelta = new Vector2((float)secondWindowPixelWidth * WindowManager.referenceSecondWindowWidth / WindowManager.SecondWindowWidth, (float)secondWindowPixelHeight * WindowManager.referenceSecondWindowHeight / WindowManager.SecondWindowHeight);
                     rectTransform.anchoredPosition = Vector2.zero;
                     rawImage.texture = renderTexture;
 
                     uiRenderTexture = new RenderTexture((int)((float)secondWindowPixelWidth / originalCamera.rect.width), (int)((float)secondWindowPixelHeight / originalCamera.rect.height), 0, RenderTextureFormat.ARGB32);
                     uiRenderTexture.enableRandomWrite = true;
+                    uiRenderTexture.filterMode = FilterMode.Point;
+                    uiRenderTexture.useMipMap = false;
                     uiRenderTexture.Create();
 
                     uiRawImageObject = new GameObject("uiRawImage");
                     DontDestroyOnLoad(uiRawImageObject);
                     uiRawImageObject.transform.SetParent(canvasObject.transform);
+                    uiRawImageObject.gameObject.layer = canvasObject.gameObject.layer;
+                    uiRawImageObject.transform.position = canvasObject.transform.position.WithZ(-100f);
                     uiRawImage = uiRawImageObject.AddComponent<RawImage>();
                     RectTransform uiRectTransform = uiRawImageObject.GetComponent<RectTransform>();
-                    uiRectTransform.sizeDelta = new Vector2((int)((float)secondWindowPixelWidth / originalCamera.rect.width * WindowManager.referenceSecondWindowWidth / WindowManager.SecondWindowWidth), (int)((float)secondWindowPixelHeight / originalCamera.rect.height * WindowManager.referenceSecondWindowHeight / WindowManager.SecondWindowHeight));
+                    uiRectTransform.sizeDelta = new Vector2((float)secondWindowPixelWidth / originalCamera.rect.width * WindowManager.referenceSecondWindowWidth / WindowManager.SecondWindowWidth, (float)secondWindowPixelHeight / originalCamera.rect.height * WindowManager.referenceSecondWindowHeight / WindowManager.SecondWindowHeight);
                     uiRectTransform.anchoredPosition = Vector2.zero;
                     uiRawImage.texture = uiRenderTexture;
 
-                    maskRenderTexture = new RenderTexture((int)((float)secondWindowPixelWidth / originalCamera.rect.width), (int)((float)secondWindowPixelHeight / originalCamera.rect.height), 0, RenderTextureFormat.ARGB32);
-                    maskRenderTexture.enableRandomWrite = true;
-                    maskRenderTexture.Create();
+                    if (simplestatsLoaded)
+                    {
+                        if (uiMainDisplayCamera != null)
+                            uiMainDisplayCamera.GetComponent<MultiDisplayCanvasFitter>()?.ForceRefresh();
 
-                    maskRawImageObject = new GameObject("maskRawImage");
-                    DontDestroyOnLoad(maskRawImageObject);
-                    maskRawImageObject.transform.SetParent(canvasObject.transform);
-                    maskRawImage = maskRawImageObject.AddComponent<RawImage>();
-                    RectTransform maskRectTransform = maskRawImageObject.GetComponent<RectTransform>();
-                    maskRectTransform.sizeDelta = new Vector2((int)((float)secondWindowPixelWidth / originalCamera.rect.width * WindowManager.referenceSecondWindowWidth / WindowManager.SecondWindowWidth), (int)((float)secondWindowPixelHeight / originalCamera.rect.height * WindowManager.referenceSecondWindowHeight / WindowManager.SecondWindowHeight));
-                    maskRectTransform.anchoredPosition = Vector2.zero;
-                    maskRawImage.texture = maskRenderTexture;
-
-                    float pixelWidth = Camera.main.rect.width;
-                    float pixelHeight = Camera.main.rect.height;
-                    maskMaterial.SetVector("_MaskRect", new Vector4((1 - pixelWidth) / 2, (1 - pixelHeight) / 2, pixelWidth, pixelHeight));
-                    Graphics.Blit(null, maskRenderTexture, maskMaterial);
+                        if (uiSecondDisplayCamera != null)
+                        {
+                            uiSecondDisplayCamera.GetComponent<MultiDisplayCanvasFitter>()?.ForceRefresh();
+                            uiSecondDisplayCamera.enabled = true;
+                        }
+                    }
 
                     clearable = true;
 
@@ -466,7 +500,8 @@ namespace CoopView
                     weirdoUiCamera.rect = tempRect;
                 }
 
-                DrawCursor(uiRenderTexture);
+                if (worldCursorController != null)
+                    worldCursorController.DrawCursor();
             }
         }
 
@@ -645,11 +680,13 @@ namespace CoopView
             if (rawImageObject != null)
             {
                 Destroy(rawImageObject);
+                rawImage = null;
                 rawImageObject = null;
             }
             if (uiRawImageObject != null)
             {
                 Destroy(uiRawImageObject);
+                uiRawImage = null;
                 uiRawImageObject = null;
             }
             if (mainCameraUiRootObject != null)
@@ -661,6 +698,15 @@ namespace CoopView
             {
                 Destroy(secondCameraUiRootObject);
                 secondCameraUiRootObject = null;
+            }
+            if (worldCursorObject != null)
+            {
+                Destroy(worldCursorObject);
+                worldCursorObject = null;
+            }
+            if (simplestatsLoaded && uiSecondDisplayCamera != null)
+            {
+                uiSecondDisplayCamera.enabled = false;
             }
 
             Debug.Log("Second camera released.");
@@ -692,30 +738,14 @@ namespace CoopView
                 BraveOptionsMenuItem.WindowsResolutionManager.SetWindowPos(window, -2, 0, 0, 0, 0, BraveOptionsMenuItem.WindowsResolutionManager.SWP_FRAMECHANGED | BraveOptionsMenuItem.WindowsResolutionManager.SWP_NOMOVE | BraveOptionsMenuItem.WindowsResolutionManager.SWP_NOSIZE);
             }
 
-            if (renderTexture != null)
-            {
-                RenderTexture.active = renderTexture;
-                GL.Clear(true, true, Color.black);
-                RenderTexture.active = null;
-            }
-
             yield return null;
 
-            if ((float)9 / 16 < ((float)WindowManager.SecondWindowHeight / (float)WindowManager.SecondWindowWidth))
-            {
-                secondWindowPixelWidth = WindowManager.SecondWindowWidth;
-                secondWindowPixelHeight = (int)(WindowManager.SecondWindowWidth * (float)9 / 16);
-            }
-            else
-            {
-                secondWindowPixelWidth = (int)(WindowManager.SecondWindowHeight * (float)16 / 9);
-                secondWindowPixelHeight = WindowManager.SecondWindowHeight;
-            }
+            UpdateSecondWindowPixelSize();
 
             if (rawImageObject != null)
             {
                 RectTransform rectTransform = rawImageObject.GetComponent<RectTransform>();
-                rectTransform.sizeDelta = new Vector2((int)(secondWindowPixelWidth * WindowManager.referenceSecondWindowWidth / WindowManager.SecondWindowWidth), (int)(secondWindowPixelHeight * WindowManager.referenceSecondWindowHeight / WindowManager.SecondWindowHeight));
+                rectTransform.sizeDelta = new Vector2((float)secondWindowPixelWidth * WindowManager.referenceSecondWindowWidth / WindowManager.SecondWindowWidth, (float)secondWindowPixelHeight * WindowManager.referenceSecondWindowHeight / WindowManager.SecondWindowHeight);
             }
 
             if (uiRawImageObject != null)
@@ -723,35 +753,18 @@ namespace CoopView
                 uiRenderTexture.Release();
                 uiRenderTexture = new RenderTexture((int)((float)WindowManager.referenceSecondWindowWidth / originalCamera.rect.width), (int)((float)WindowManager.referenceSecondWindowHeight / originalCamera.rect.height), 0, RenderTextureFormat.ARGB32);
                 uiRenderTexture.enableRandomWrite = true;
+                uiRenderTexture.filterMode = FilterMode.Point;
+                uiRenderTexture.useMipMap = false;
                 uiRenderTexture.Create();
 
                 RectTransform uiRectTransform = uiRawImageObject.GetComponent<RectTransform>();
-                uiRectTransform.sizeDelta = new Vector2((int)((float)secondWindowPixelWidth / originalCamera.rect.width * WindowManager.referenceSecondWindowWidth / WindowManager.SecondWindowWidth), (int)((float)secondWindowPixelHeight / originalCamera.rect.height * WindowManager.referenceSecondWindowHeight / WindowManager.SecondWindowHeight));
+                uiRectTransform.sizeDelta = new Vector2((float)secondWindowPixelWidth / originalCamera.rect.width * WindowManager.referenceSecondWindowWidth / WindowManager.SecondWindowWidth, (float)secondWindowPixelHeight / originalCamera.rect.height * WindowManager.referenceSecondWindowHeight / WindowManager.SecondWindowHeight);
 
                 uiRawImage.texture = null;
                 uiRawImage.color = Color.black;
                 yield return null;
                 uiRawImage.color = Color.white;
                 uiRawImage.texture = uiRenderTexture;
-
-                maskRenderTexture.Release();
-                maskRenderTexture = new RenderTexture((int)((float)WindowManager.referenceSecondWindowWidth / originalCamera.rect.width), (int)((float)WindowManager.referenceSecondWindowHeight / originalCamera.rect.height), 0, RenderTextureFormat.ARGB32);
-                maskRenderTexture.enableRandomWrite = true;
-                maskRenderTexture.Create();
-
-                RectTransform maskRectTransform = maskRawImageObject.GetComponent<RectTransform>();
-                maskRectTransform.sizeDelta = new Vector2((int)((float)secondWindowPixelWidth / originalCamera.rect.width * WindowManager.referenceSecondWindowWidth / WindowManager.SecondWindowWidth), (int)((float)secondWindowPixelHeight / originalCamera.rect.height * WindowManager.referenceSecondWindowHeight / WindowManager.SecondWindowHeight));
-
-                maskRawImage.texture = null;
-                maskRawImage.color = Color.black;
-                yield return null;
-                maskRawImage.color = Color.white;
-                maskRawImage.texture = maskRenderTexture;
-
-                float pixelWidth = Camera.main.rect.width;
-                float pixelHeight = Camera.main.rect.height;
-                maskMaterial.SetVector("_MaskRect", new Vector4((1 - pixelWidth) / 2, (1 - pixelHeight) / 2, pixelWidth, pixelHeight));
-                Graphics.Blit(null, maskRenderTexture, maskMaterial);
             }
 
             if (originalCamera != null)
@@ -760,214 +773,13 @@ namespace CoopView
                 rectSmall = new Rect(0.25f * rectFullscreen.width + 0.5f, 0.1625f * rectFullscreen.height + 0.5f, 0.25f * rectFullscreen.width, 0.25f * rectFullscreen.height);
             }
 
+            if (simplestatsLoaded)
+            {
+                uiMainDisplayCamera?.GetComponent<MultiDisplayCanvasFitter>()?.ForceRefresh();
+                uiSecondDisplayCamera?.GetComponent<MultiDisplayCanvasFitter>()?.ForceRefresh();
+            }
+
             ChangeMouseSensitivityMultipliers();
-        }
-
-        private static void DrawCursor(RenderTexture targetTexture)
-        {
-            if (!GameManager.HasInstance)
-                return;
-            if (gameCursorController == null)
-                return;
-
-            if (GameCursorController.showMouseCursor && (GameManager.HasInstance ? GameManager.Instance.CurrentGameType == GameManager.GameType.COOP_2_PLAYER : false))
-            {
-                if (RawInputHandler.ShowPublicCursor)
-                {
-                    Texture2D texture2D;
-                    Color color = new Color(0.5f, 0.5f, 0.5f, 0.5f);
-                    float scale = 1f;
-                    if (CoopKBnMPatches.customCursorIsOn)
-                    {
-                        if (GameManager.Instance.CurrentGameType == GameManager.GameType.COOP_2_PLAYER && !BraveInput.GetInstanceForPlayer(0).IsKeyboardAndMouse(false) && BraveInput.GetInstanceForPlayer(1).IsKeyboardAndMouse(false))
-                        {
-                            texture2D = CoopKBnMPatches.playerTwoCursor;
-                            color = CoopKBnMPatches.playerTwoCursorModulation;
-                            scale = CoopKBnMPatches.playerTwoCursorScale;
-                        }
-                        else
-                        {
-                            texture2D = CoopKBnMPatches.playerOneCursor;
-                            color = CoopKBnMPatches.playerOneCursorModulation;
-                            scale = CoopKBnMPatches.playerOneCursorScale;
-                        }
-                        if (texture2D == null)
-                        {
-                            texture2D = gameCursorController.normalCursor;
-                            int currentCursorIndex = GameManager.Options.CurrentCursorIndex;
-                            if (currentCursorIndex >= 0 && currentCursorIndex < gameCursorController.cursors.Length)
-                                texture2D = gameCursorController.cursors[currentCursorIndex];
-                        }
-                    }
-                    else
-                    {
-                        texture2D = gameCursorController.normalCursor;
-                        int currentCursorIndex = GameManager.Options.CurrentCursorIndex;
-
-                        if (currentCursorIndex >= 0 && currentCursorIndex < gameCursorController.cursors.Length)
-                            texture2D = gameCursorController.cursors[currentCursorIndex];
-
-                        if (GameManager.Instance.CurrentGameType == GameManager.GameType.COOP_2_PLAYER && !BraveInput.GetInstanceForPlayer(0).IsKeyboardAndMouse(false) && BraveInput.GetInstanceForPlayer(1).IsKeyboardAndMouse(false))
-                            color = new Color(0.402f, 0.111f, 0.32f);
-                    }
-
-                    Vector2 mousePosition = RawInputHandler.FirstMousePosition;
-                    Vector2 vector = new Vector2((float)texture2D.width, (float)texture2D.height) * (float)((!(Pixelator.Instance != null)) ? 3 : ((int)Pixelator.Instance.ScaleTileScale)) * scale;
-                    Rect screenRect = new Rect((mousePosition.x + 0.5f - vector.x / 2f - Screen.width / 2) * WindowManager.referenceSecondWindowWidth / Screen.width, (mousePosition.y + 0.5f - vector.y / 2f - Screen.height / 2) * WindowManager.referenceSecondWindowHeight / Screen.height,
-                        vector.x * WindowManager.referenceSecondWindowWidth / Screen.width, vector.y * WindowManager.referenceSecondWindowHeight / Screen.height);
-                    screenRect = new Rect(screenRect.x, screenRect.y + screenRect.height, screenRect.width, -screenRect.height);
-                    RenderTexture.active = targetTexture;
-                    Graphics.DrawTexture(screenRect, texture2D, new Rect(0f, 0f, 1f, 1f), 0, 0, 0, 0, color);
-                    RenderTexture.active = null;
-                }
-                else
-                {
-                    if ((RawInputHandler.ShowPlayerOneMouseCursor && !CoopKBnM.OptionsManager.isPrimaryPlayerOnMainCamera) || (RawInputHandler.ShowPlayerTwoMouseCursor && CoopKBnM.OptionsManager.isPrimaryPlayerOnMainCamera))
-                    {
-                        Texture2D texture2D;
-                        Color color = new Color(0.5f, 0.5f, 0.5f, 0.5f);
-                        float scale = 1f;
-                        if (CoopKBnMPatches.customCursorIsOn)
-                        {
-                            if (CoopKBnM.OptionsManager.isPrimaryPlayerOnMainCamera)
-                            {
-                                texture2D = CoopKBnMPatches.playerTwoCursor;
-                                color = CoopKBnMPatches.playerTwoCursorModulation;
-                                scale = CoopKBnMPatches.playerTwoCursorScale;
-                            }
-                            else
-                            {
-                                texture2D = CoopKBnMPatches.playerOneCursor;
-                                color = CoopKBnMPatches.playerOneCursorModulation;
-                                scale = CoopKBnMPatches.playerOneCursorScale;
-                            }
-                            if (texture2D == null)
-                            {
-                                texture2D = gameCursorController.normalCursor;
-                                int currentCursorIndex = GameManager.Options.CurrentCursorIndex;
-                                if (currentCursorIndex >= 0 && currentCursorIndex < gameCursorController.cursors.Length)
-                                    texture2D = gameCursorController.cursors[currentCursorIndex];
-                            }
-                        }
-                        else
-                        {
-                            texture2D = gameCursorController.normalCursor;
-                            int currentCursorIndex = GameManager.Options.CurrentCursorIndex;
-
-                            if (currentCursorIndex >= 0 && currentCursorIndex < gameCursorController.cursors.Length)
-                                texture2D = gameCursorController.cursors[currentCursorIndex];
-
-                            if (CoopKBnM.OptionsManager.isPrimaryPlayerOnMainCamera)
-                                color = new Color(0.402f, 0.111f, 0.32f);
-                        }
-
-                        Vector2 mousePosition;
-                        if (!CoopKBnM.OptionsManager.restrictMouseInputPort)
-                            mousePosition = RawInputHandler.FirstMousePosition;
-                        else
-                        {
-                            if (CoopKBnM.OptionsManager.isPrimaryPlayerOnMainCamera)
-                                mousePosition = CoopKBnM.OptionsManager.currentPlayerOneMousePort == 0 ? RawInputHandler.SecondMousePosition : RawInputHandler.FirstMousePosition;
-                            else
-                                mousePosition = CoopKBnM.OptionsManager.currentPlayerOneMousePort != 0 ? RawInputHandler.SecondMousePosition : RawInputHandler.FirstMousePosition;
-                        }
-
-                        Vector2 vector = new Vector2((float)texture2D.width, (float)texture2D.height) * (float)((!(Pixelator.Instance != null)) ? 3 : ((int)Pixelator.Instance.ScaleTileScale)) * scale;
-                        Rect screenRect = new Rect((mousePosition.x + 0.5f - vector.x / 2f - Screen.width / 2) * WindowManager.referenceSecondWindowWidth / Screen.width, (mousePosition.y + 0.5f - vector.y / 2f - Screen.height / 2) * WindowManager.referenceSecondWindowHeight / Screen.height,
-                            vector.x * WindowManager.referenceSecondWindowWidth / Screen.width, vector.y * WindowManager.referenceSecondWindowHeight / Screen.height);
-                        screenRect = new Rect(screenRect.x, screenRect.y + screenRect.height, screenRect.width, -screenRect.height);
-                        RenderTexture.active = targetTexture;
-                        Graphics.DrawTexture(screenRect, texture2D, new Rect(0f, 0f, 1f, 1f), 0, 0, 0, 0, color);
-                        RenderTexture.active = null;
-                    }
-                }
-            }
-            PlayerController primaryPlayer = GameManager.Instance.PrimaryPlayer;
-            if (!CoopKBnM.OptionsManager.restrictMouseInputPort && !CoopKBnM.OptionsManager.isPrimaryPlayerOnMainCamera && GameCursorController.showPlayerOneControllerCursor && !GameManager.Instance.IsPaused && !GameManager.IsBossIntro)
-            {
-                BraveInput instanceForPlayer = BraveInput.GetInstanceForPlayer(0);
-                if (primaryPlayer && instanceForPlayer.ActiveActions.Aim.Vector != Vector2.zero && (primaryPlayer.CurrentInputState == PlayerInputState.AllInput || primaryPlayer.IsInMinecart))
-                {
-                    Texture2D texture2D;
-                    Color color = new Color(0.5f, 0.5f, 0.5f, 0.5f);
-                    float scale = 1f;
-                    if (CoopKBnMPatches.customCursorIsOn)
-                    {
-                        texture2D = CoopKBnMPatches.playerOneCursor;
-                        color = CoopKBnMPatches.playerOneCursorModulation;
-                        scale = CoopKBnMPatches.playerOneCursorScale;
-                        if (texture2D == null)
-                        {
-                            texture2D = gameCursorController.normalCursor;
-                            int currentCursorIndex = GameManager.Options.CurrentCursorIndex;
-                            if (currentCursorIndex >= 0 && currentCursorIndex < gameCursorController.cursors.Length)
-                                texture2D = gameCursorController.cursors[currentCursorIndex];
-                        }
-                    }
-                    else
-                    {
-                        texture2D = gameCursorController.normalCursor;
-                        int currentCursorIndex = GameManager.Options.CurrentCursorIndex;
-
-                        if (currentCursorIndex >= 0 && currentCursorIndex < gameCursorController.cursors.Length)
-                            texture2D = gameCursorController.cursors[currentCursorIndex];
-                    }
-
-                    Vector2 pos = camera.WorldToViewportPoint(primaryPlayer.CenterPosition + instanceForPlayer.ActiveActions.Aim.Vector.normalized * 5f);
-                    Vector2 vector2 = BraveCameraUtility.ConvertGameViewportToScreenViewport(pos);
-                    Vector2 vector3 = new Vector2(vector2.x * (float)Screen.width, vector2.y * (float)Screen.height);
-                    Vector2 vector4 = new Vector2((float)texture2D.width, (float)texture2D.height) * (float)((!(Pixelator.Instance != null)) ? 3 : ((int)Pixelator.Instance.ScaleTileScale)) * scale;
-                    Rect screenRect2 = new Rect((vector3.x + 0.5f - vector4.x / 2f - Screen.width / 2) * WindowManager.referenceSecondWindowWidth / Screen.width, (vector3.y + 0.5f - vector4.y / 2f - Screen.height / 2) * WindowManager.referenceSecondWindowHeight / Screen.height,
-                        vector4.x * WindowManager.referenceSecondWindowWidth / Screen.width, vector4.y * WindowManager.referenceSecondWindowHeight / Screen.height);
-                    screenRect2 = new Rect(screenRect2.x, screenRect2.y + screenRect2.height, screenRect2.width, -screenRect2.height);
-                    RenderTexture.active = targetTexture;
-                    Graphics.DrawTexture(screenRect2, texture2D, new Rect(0f, 0f, 1f, 1f), 0, 0, 0, 0, color);
-                    RenderTexture.active = null;
-                }
-            }
-            PlayerController secondaryPlayer = GameManager.Instance.SecondaryPlayer;
-            if (!CoopKBnM.OptionsManager.restrictMouseInputPort && CoopKBnM.OptionsManager.isPrimaryPlayerOnMainCamera && GameCursorController.showPlayerTwoControllerCursor && !GameManager.Instance.IsPaused && !GameManager.IsBossIntro)
-            {
-                BraveInput instanceForPlayer2 = BraveInput.GetInstanceForPlayer(1);
-                if (secondaryPlayer && instanceForPlayer2.ActiveActions.Aim.Vector != Vector2.zero && (secondaryPlayer.CurrentInputState == PlayerInputState.AllInput || secondaryPlayer.IsInMinecart))
-                {
-                    Texture2D texture2D;
-                    Color color = new Color(0.402f, 0.111f, 0.32f);
-                    float scale = 1f;
-                    if (CoopKBnMPatches.customCursorIsOn)
-                    {
-                        texture2D = CoopKBnMPatches.playerTwoCursor;
-                        color = CoopKBnMPatches.playerTwoCursorModulation;
-                        scale = CoopKBnMPatches.playerTwoCursorScale;
-                        if (texture2D == null)
-                        {
-                            texture2D = gameCursorController.normalCursor;
-                            int currentCursorIndex = GameManager.Options.CurrentCursorIndex;
-                            if (currentCursorIndex >= 0 && currentCursorIndex < gameCursorController.cursors.Length)
-                                texture2D = gameCursorController.cursors[currentCursorIndex];
-                        }
-                    }
-                    else
-                    {
-                        texture2D = gameCursorController.normalCursor;
-                        int currentCursorIndex = GameManager.Options.CurrentCursorIndex;
-
-                        if (currentCursorIndex >= 0 && currentCursorIndex < gameCursorController.cursors.Length)
-                            texture2D = gameCursorController.cursors[currentCursorIndex];
-                    }
-
-                    Vector2 pos2 = camera.WorldToViewportPoint(secondaryPlayer.CenterPosition + instanceForPlayer2.ActiveActions.Aim.Vector.normalized * 5f);
-                    Vector2 vector5 = BraveCameraUtility.ConvertGameViewportToScreenViewport(pos2);
-                    Vector2 vector6 = new Vector2(vector5.x * (float)Screen.width, vector5.y * (float)Screen.height);
-                    Vector2 vector7 = new Vector2((float)texture2D.width, (float)texture2D.height) * (float)((!(Pixelator.Instance != null)) ? 3 : ((int)Pixelator.Instance.ScaleTileScale)) * scale;
-                    Rect screenRect3 = new Rect((vector6.x + 0.5f - vector7.x / 2f - Screen.width / 2) * WindowManager.referenceSecondWindowWidth / Screen.width, (vector6.y + 0.5f - vector7.y / 2f - Screen.height / 2) * WindowManager.referenceSecondWindowHeight / Screen.height,
-                        vector7.x * WindowManager.referenceSecondWindowWidth / Screen.width, vector7.y * WindowManager.referenceSecondWindowHeight / Screen.height);
-                    screenRect3 = new Rect(screenRect3.x, screenRect3.y + screenRect3.height, screenRect3.width, -screenRect3.height);
-                    RenderTexture.active = targetTexture;
-                    Graphics.DrawTexture(screenRect3, texture2D, new Rect(0f, 0f, 1f, 1f), 0, 0, 0, 0, color);
-                    RenderTexture.active = null;
-                }
-            }
         }
 
         private static void ChangeMouseSensitivityMultipliers()
@@ -978,11 +790,11 @@ namespace CoopView
             if (CoopKBnM.OptionsManager.isPrimaryPlayerOnMainCamera)
             {
                 RawInputHandler.playerOneMouseSensitivityMultiplier = 1f;
-                RawInputHandler.playerTwoMouseSensitivityMultiplier = (float)Camera.main.pixelWidth / secondWindowPixelWidth;
+                RawInputHandler.playerTwoMouseSensitivityMultiplier = (float)Camera.main.pixelWidth / ViewController.secondWindowPixelWidth;
             }
             else
             {
-                RawInputHandler.playerOneMouseSensitivityMultiplier = (float)Camera.main.pixelWidth / secondWindowPixelWidth;
+                RawInputHandler.playerOneMouseSensitivityMultiplier = (float)Camera.main.pixelWidth / ViewController.secondWindowPixelWidth;
                 RawInputHandler.playerTwoMouseSensitivityMultiplier = 1f;
             }
         }
@@ -1134,6 +946,20 @@ namespace CoopView
         public static GameObject GetAnotherThreatArrowForCameraController(CameraController controller)
         {
             return controller.m_player.IsPrimaryPlayer ? secondaryThreatArrow : primaryThreatArrow;
+        }
+
+        public static void UpdateSecondWindowPixelSize()
+        {
+            if ((float)9 / 16 < ((float)WindowManager.SecondWindowHeight / (float)WindowManager.SecondWindowWidth))
+            {
+                secondWindowPixelWidth = WindowManager.SecondWindowWidth;
+                secondWindowPixelHeight = (int)(WindowManager.SecondWindowWidth * (float)9 / 16);
+            }
+            else
+            {
+                secondWindowPixelWidth = (int)(WindowManager.SecondWindowHeight * (float)16 / 9);
+                secondWindowPixelHeight = WindowManager.SecondWindowHeight;
+            }
         }
     }
 }

@@ -9,6 +9,7 @@ using UnityEngine;
 using CoopKBnM;
 using System.Collections.Generic;
 using InControl;
+using UnityEngine.UI;
 
 namespace CoopView
 {
@@ -1888,7 +1889,6 @@ namespace CoopView
             }
         }
 
-
         [HarmonyPatch(typeof(PlayerActionSet), nameof(PlayerActionSet.Load))]
         public class LoadPatchClass
         {
@@ -2502,7 +2502,6 @@ namespace CoopView
                 return new Vector4(vector.x, vector.y, self.dRadius, self.dIntensity);
             }
         }
-
 
         [HarmonyPatch(typeof(SilencerInstance), nameof(SilencerInstance.HandleSilence), MethodType.Enumerator)]
         public class HandleSilencePatchClass
@@ -3306,6 +3305,32 @@ namespace CoopView
             public static void PlayerCharacterChangedPostfix()
             {
                 GameManager.Instance.StartCoroutine(ViewController.UpdatePlayerAndCameraBindings());
+            }
+        }
+
+        public class CreateCanvasPatchClass
+        {
+            public static void CreateCanvasPostfix()
+            {
+                Type kguiType = AccessTools.TypeByName("SimpleStatsTweaked.KGUI");
+                if (kguiType == null) return;
+
+                FieldInfo canvasField = kguiType.GetField(
+                    "m_canvas",
+                    BindingFlags.NonPublic | BindingFlags.Static);
+
+                if (canvasField == null) return;
+
+                ViewController.simpleStatsCanvas = canvasField.GetValue(null) as Canvas;
+                if (ViewController.simpleStatsCanvas == null) return;
+
+                MultiDisplayCanvasFitter.SetupCanvas(ViewController.simpleStatsCanvas);
+
+                ViewController.uiMainDisplayCamera =
+                    MultiDisplayCanvasFitter.CreateUICamera("UI Display0 Camera", 0, ViewController.simpleStatsCanvas);
+
+                ViewController.uiSecondDisplayCamera =
+                    MultiDisplayCanvasFitter.CreateUICamera("UI Display1 Camera", 1, ViewController.simpleStatsCanvas);
             }
         }
     }

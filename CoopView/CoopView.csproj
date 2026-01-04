@@ -249,14 +249,15 @@
     <Compile Include="CoopViewPatches.cs" />
     <Compile Include="CoopViewPreferences.cs" />
     <Compile Include="KeyCodeMaps.cs" />
+    <Compile Include="MultiDisplayCanvasFitter.cs" />
     <Compile Include="OptionsManager.cs" />
     <Compile Include="ViewController.cs" />
     <Compile Include="ShortcutKeyHandler.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="WindowManager.cs" />
+    <Compile Include="WorldCursorController.cs" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="coopview_assets" />
     <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

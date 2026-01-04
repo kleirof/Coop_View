@@ -1,6 +1,8 @@
 ﻿using BepInEx;
 using UnityEngine;
 using HarmonyLib;
+using BepInEx.Bootstrap;
+using System.Reflection;
 
 namespace CoopView
 {
@@ -11,16 +13,17 @@ namespace CoopView
     {
         public const string GUID = "kleirof.etg.coopview";
         public const string NAME = "Coop View";
-        public const string VERSION = "1.0.13";
+        public const string VERSION = "1.1.0";
         public const string TEXT_COLOR = "#CCFF33";
 
         private GameObject coopViewObject;
+        private Harmony harmony;
 
         public void Start()
         {
             ETGModMainBehaviour.WaitForGameManagerStart(GMStart);
 
-            Harmony harmony = new Harmony(GUID);
+            harmony = new Harmony(GUID);
             harmony.CreateClassProcessor(typeof(CoopViewPatches.ShowTextPatchClass)).Patch();
             CoopViewPatches.ShowTextPatchClass.isPatched = true;
 
@@ -31,6 +34,8 @@ namespace CoopView
                 coopViewObject = new GameObject("Coop View Object");
                 DontDestroyOnLoad(coopViewObject);
                 coopViewObject.AddComponent<ViewController>();
+
+                DoOptionalPatches();
             }
         }
 
@@ -124,6 +129,18 @@ namespace CoopView
                 ETGModConsole.Log($"Please ensure that the second monitor is connected, whether it is a physical monitor or a virtual monitor (such as Parsec-vdd).\n");
                 ETGModConsole.Log($"And ensure that the second monitor is in extend mode (shortcut key Win + P can switch).\n");
                 ETGModConsole.Log($"After all of the above is ready, the game must be restarted!");
+            }
+        }
+
+        private void DoOptionalPatches()
+        {
+            if (Chainloader.PluginInfos.ContainsKey("SimplyFenton.etg.simplestatstweaked"))
+            {
+                ViewController.simplestatsLoaded = true;
+                var KGUIModuleType = AccessTools.TypeByName("SimpleStatsTweaked.KGUI");
+                MethodInfo methodInfo1 = AccessTools.Method(KGUIModuleType, "CreateCanvas", null, null);
+                MethodInfo fixMethodInfo1 = AccessTools.Method(typeof(CoopViewPatches.CreateCanvasPatchClass), nameof(CoopViewPatches.CreateCanvasPatchClass.CreateCanvasPostfix), null, null);
+                harmony.Patch(methodInfo1, null, new HarmonyMethod(fixMethodInfo1), null, null, null);
             }
         }
     }
