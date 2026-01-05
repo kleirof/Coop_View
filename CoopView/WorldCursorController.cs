@@ -82,8 +82,7 @@ namespace CoopView
                 RawInputHandler.ShowPublicCursor)
             {
                 hasCursorToDraw = ProcessMouseCursor(
-                    isPrimary: !BraveInput.GetInstanceForPlayer(0).IsKeyboardAndMouse(false)
-                               && BraveInput.GetInstanceForPlayer(1).IsKeyboardAndMouse(false),
+                    isPrimary: !(!BraveInput.GetInstanceForPlayer(0).IsKeyboardAndMouse(false) && BraveInput.GetInstanceForPlayer(1).IsKeyboardAndMouse(false)),
                     mousePosition: RawInputHandler.FirstMousePosition
                 );
             }

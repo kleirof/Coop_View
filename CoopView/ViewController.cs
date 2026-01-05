@@ -375,11 +375,12 @@ namespace CoopView
                     rawImageObject.transform.position = canvasObject.transform.position.WithZ(-100f);
                     rawImage = rawImageObject.AddComponent<RawImage>();
                     RectTransform rectTransform = rawImageObject.GetComponent<RectTransform>();
-                    rectTransform.sizeDelta = new Vector2((float)secondWindowPixelWidth * WindowManager.referenceSecondWindowWidth / WindowManager.SecondWindowWidth, (float)secondWindowPixelHeight * WindowManager.referenceSecondWindowHeight / WindowManager.SecondWindowHeight);
+                    rectTransform.sizeDelta = new Vector2(Mathf.RoundToInt((float)secondWindowPixelWidth * WindowManager.referenceSecondWindowWidth / WindowManager.SecondWindowWidth), Mathf.RoundToInt((float)secondWindowPixelHeight * WindowManager.referenceSecondWindowHeight / WindowManager.SecondWindowHeight));
                     rectTransform.anchoredPosition = Vector2.zero;
+                    rawImage.raycastTarget = false;
                     rawImage.texture = renderTexture;
 
-                    uiRenderTexture = new RenderTexture((int)((float)secondWindowPixelWidth / originalCamera.rect.width), (int)((float)secondWindowPixelHeight / originalCamera.rect.height), 0, RenderTextureFormat.ARGB32);
+                    uiRenderTexture = new RenderTexture(Mathf.RoundToInt((float)secondWindowPixelWidth / originalCamera.rect.width), Mathf.RoundToInt((float)secondWindowPixelHeight / originalCamera.rect.height), 0, RenderTextureFormat.ARGB32);
                     uiRenderTexture.enableRandomWrite = true;
                     uiRenderTexture.filterMode = FilterMode.Point;
                     uiRenderTexture.useMipMap = false;
@@ -392,8 +393,9 @@ namespace CoopView
                     uiRawImageObject.transform.position = canvasObject.transform.position.WithZ(-100f);
                     uiRawImage = uiRawImageObject.AddComponent<RawImage>();
                     RectTransform uiRectTransform = uiRawImageObject.GetComponent<RectTransform>();
-                    uiRectTransform.sizeDelta = new Vector2((float)secondWindowPixelWidth / originalCamera.rect.width * WindowManager.referenceSecondWindowWidth / WindowManager.SecondWindowWidth, (float)secondWindowPixelHeight / originalCamera.rect.height * WindowManager.referenceSecondWindowHeight / WindowManager.SecondWindowHeight);
+                    uiRectTransform.sizeDelta = new Vector2(Mathf.RoundToInt((float)secondWindowPixelWidth / originalCamera.rect.width * WindowManager.referenceSecondWindowWidth / WindowManager.SecondWindowWidth), Mathf.RoundToInt((float)secondWindowPixelHeight / originalCamera.rect.height * WindowManager.referenceSecondWindowHeight / WindowManager.SecondWindowHeight));
                     uiRectTransform.anchoredPosition = Vector2.zero;
+                    uiRawImage.raycastTarget = false;
                     uiRawImage.texture = uiRenderTexture;
 
                     if (simplestatsLoaded)
@@ -745,20 +747,20 @@ namespace CoopView
             if (rawImageObject != null)
             {
                 RectTransform rectTransform = rawImageObject.GetComponent<RectTransform>();
-                rectTransform.sizeDelta = new Vector2((float)secondWindowPixelWidth * WindowManager.referenceSecondWindowWidth / WindowManager.SecondWindowWidth, (float)secondWindowPixelHeight * WindowManager.referenceSecondWindowHeight / WindowManager.SecondWindowHeight);
+                rectTransform.sizeDelta = new Vector2(Mathf.RoundToInt((float)secondWindowPixelWidth * WindowManager.referenceSecondWindowWidth / WindowManager.SecondWindowWidth), Mathf.RoundToInt((float)secondWindowPixelHeight * WindowManager.referenceSecondWindowHeight / WindowManager.SecondWindowHeight));
             }
 
             if (uiRawImageObject != null)
             {
                 uiRenderTexture.Release();
-                uiRenderTexture = new RenderTexture((int)((float)WindowManager.referenceSecondWindowWidth / originalCamera.rect.width), (int)((float)WindowManager.referenceSecondWindowHeight / originalCamera.rect.height), 0, RenderTextureFormat.ARGB32);
+                uiRenderTexture = new RenderTexture(Mathf.RoundToInt((float)WindowManager.referenceSecondWindowWidth / originalCamera.rect.width), Mathf.RoundToInt((float)WindowManager.referenceSecondWindowHeight / originalCamera.rect.height), 0, RenderTextureFormat.ARGB32);
                 uiRenderTexture.enableRandomWrite = true;
                 uiRenderTexture.filterMode = FilterMode.Point;
                 uiRenderTexture.useMipMap = false;
                 uiRenderTexture.Create();
 
                 RectTransform uiRectTransform = uiRawImageObject.GetComponent<RectTransform>();
-                uiRectTransform.sizeDelta = new Vector2((float)secondWindowPixelWidth / originalCamera.rect.width * WindowManager.referenceSecondWindowWidth / WindowManager.SecondWindowWidth, (float)secondWindowPixelHeight / originalCamera.rect.height * WindowManager.referenceSecondWindowHeight / WindowManager.SecondWindowHeight);
+                uiRectTransform.sizeDelta = new Vector2(Mathf.RoundToInt((float)secondWindowPixelWidth / originalCamera.rect.width * WindowManager.referenceSecondWindowWidth / WindowManager.SecondWindowWidth), Mathf.RoundToInt((float)secondWindowPixelHeight / originalCamera.rect.height * WindowManager.referenceSecondWindowHeight / WindowManager.SecondWindowHeight));
 
                 uiRawImage.texture = null;
                 uiRawImage.color = Color.black;
@@ -777,6 +779,11 @@ namespace CoopView
             {
                 uiMainDisplayCamera?.GetComponent<MultiDisplayCanvasFitter>()?.ForceRefresh();
                 uiSecondDisplayCamera?.GetComponent<MultiDisplayCanvasFitter>()?.ForceRefresh();
+            }
+
+            if (camera)
+            {
+                camera.aspect = 16f / 9;
             }
 
             ChangeMouseSensitivityMultipliers();
