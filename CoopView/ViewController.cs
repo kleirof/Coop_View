@@ -62,6 +62,10 @@ namespace CoopView
 
         internal static bool secondWindowActive = false;
 
+        internal static AssetBundle coopViewAssets;
+        private static Shader ignoreAlphaShader;
+        private static Material ignoreAlphaMaterial;
+
         internal static bool waitingForRestoringCaption = true;
 
         internal static GameObject mainCameraUiRootObject;
@@ -176,6 +180,14 @@ namespace CoopView
 
                 WindowManager.InitWindowHook();
                 ShortcutKeyHandler.InitMessageHandler();
+
+                using (Stream s = Assembly.GetExecutingAssembly().GetManifestResourceStream("CoopView.coopview_assets"))
+                {
+                    coopViewAssets = AssetBundle.LoadFromStream(s);
+                }
+
+                ignoreAlphaShader = coopViewAssets.LoadAsset<Shader>("IgnoreAlpha");
+                ignoreAlphaMaterial = new Material(ignoreAlphaShader);
 
                 ChangeMouseSensitivityMultipliers();
             }
@@ -372,13 +384,14 @@ namespace CoopView
                     DontDestroyOnLoad(rawImageObject);
                     rawImageObject.transform.SetParent(canvasObject.transform);
                     rawImageObject.gameObject.layer = canvasObject.gameObject.layer;
-                    rawImageObject.transform.position = canvasObject.transform.position.WithZ(-100f);
+                    rawImageObject.transform.position = canvasObject.transform.position.WithZ(-102f);
                     rawImage = rawImageObject.AddComponent<RawImage>();
                     RectTransform rectTransform = rawImageObject.GetComponent<RectTransform>();
                     rectTransform.sizeDelta = new Vector2(Mathf.RoundToInt((float)secondWindowPixelWidth * WindowManager.referenceSecondWindowWidth / WindowManager.SecondWindowWidth), Mathf.RoundToInt((float)secondWindowPixelHeight * WindowManager.referenceSecondWindowHeight / WindowManager.SecondWindowHeight));
                     rectTransform.anchoredPosition = Vector2.zero;
                     rawImage.raycastTarget = false;
                     rawImage.texture = renderTexture;
+                    rawImage.material = ignoreAlphaMaterial;
 
                     uiRenderTexture = new RenderTexture(Mathf.RoundToInt((float)secondWindowPixelWidth / originalCamera.rect.width), Mathf.RoundToInt((float)secondWindowPixelHeight / originalCamera.rect.height), 0, RenderTextureFormat.ARGB32);
                     uiRenderTexture.enableRandomWrite = true;
@@ -435,6 +448,7 @@ namespace CoopView
                     {
                         cameraPixelator.SetOcclusionDirty();
                         originCameraPixelator.SetOcclusionDirty();
+                        camera.aspect = 16f / 9;
                     }
 
                     if ((GameManager.Instance.IsPaused || GameManager.Instance.IsLoadingLevel || AmmonomiconController.Instance.IsOpen) && uiRenderTexture != null)
@@ -779,11 +793,6 @@ namespace CoopView
             {
                 uiMainDisplayCamera?.GetComponent<MultiDisplayCanvasFitter>()?.ForceRefresh();
                 uiSecondDisplayCamera?.GetComponent<MultiDisplayCanvasFitter>()?.ForceRefresh();
-            }
-
-            if (camera)
-            {
-                camera.aspect = 16f / 9;
             }
 
             ChangeMouseSensitivityMultipliers();

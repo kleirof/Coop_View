@@ -258,6 +258,7 @@
     <Compile Include="WorldCursorController.cs" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="coopview_assets" />
     <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
