@@ -427,11 +427,6 @@ namespace CoopView
 
                     Debug.Log("Second camera initialized.");
                 }
-
-                if (!GameManager.Instance.IsLoadingLevel && camera != null)
-                {
-                    camera.aspect = 16f / 9;
-                }
             }
             else if (clearable == true)
             {
@@ -449,6 +444,11 @@ namespace CoopView
             {
                 if (!GameManager.Instance.IsLoadingLevel)
                 {
+                    if (camera != null)
+                    {
+                        camera.aspect = 16f / 9;
+                    }
+
                     if ((GameManager.Instance.IsPaused || GameManager.Instance.IsLoadingLevel || AmmonomiconController.Instance.IsOpen) && uiRenderTexture != null)
                     {
                         RenderTexture.active = uiRenderTexture;

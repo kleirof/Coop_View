@@ -1428,7 +1428,6 @@ namespace CoopView
 
                     ViewController.additionalRenderMaterials.Clear();
 
-
                     GameManager gameManager = GameManager.HasInstance ? GameManager.Instance : null;
                     if (gameManager != null)
                     {
@@ -3342,8 +3341,7 @@ namespace CoopView
             {
                 if (__instance == ViewController.cameraPixelator)
                 {
-                    var occluder = __instance.occluder;
-                    if (__instance == null || occluder == null || ViewController.camera == null)
+                    if (__instance == null || ViewController.camera == null)
                         return;
 
                     __instance.m_camera = ViewController.camera;
