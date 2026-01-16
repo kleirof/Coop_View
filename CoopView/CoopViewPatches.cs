@@ -1427,17 +1427,17 @@ namespace CoopView
                     DoScreenShakePatchClass_1.avoidSecondCameraShake = false;
 
                     ViewController.additionalRenderMaterials.Clear();
+
+
+                    GameManager gameManager = GameManager.HasInstance ? GameManager.Instance : null;
+                    if (gameManager != null)
+                    {
+                        InterruptPitRespawn(gameManager.PrimaryPlayer);
+
+                        if (gameManager.CurrentGameType == GameManager.GameType.COOP_2_PLAYER)
+                            InterruptPitRespawn(gameManager.SecondaryPlayer);
+                    }
                 }
-
-                GameManager gameManager = GameManager.HasInstance ? GameManager.Instance : null;
-                if (gameManager == null)
-                    return;
-
-                InterruptPitRespawn(gameManager.PrimaryPlayer);
-
-                if (gameManager.CurrentGameType == GameManager.GameType.COOP_2_PLAYER)
-                    InterruptPitRespawn(gameManager.SecondaryPlayer);
-
                 runningPitRespawn.Clear();
             }
 
@@ -3331,6 +3331,24 @@ namespace CoopView
 
                 ViewController.uiSecondDisplayCamera =
                     MultiDisplayCanvasFitter.CreateUICamera("UI Display1 Camera", 1, ViewController.simpleStatsCanvas);
+            }
+        }
+
+        [HarmonyPatch(typeof(Pixelator), nameof(Pixelator.Start))]
+        public class PixelatorStartPatchClass
+        {
+            [HarmonyPostfix]
+            public static void PixelatorStartPostfix(Pixelator __instance)
+            {
+                if (__instance == ViewController.cameraPixelator)
+                {
+                    var occluder = __instance.occluder;
+                    if (__instance == null || occluder == null || ViewController.camera == null)
+                        return;
+
+                    __instance.m_camera = ViewController.camera;
+                    __instance.occluder = Pixelator.Instance?.occluder;
+                }
             }
         }
     }
