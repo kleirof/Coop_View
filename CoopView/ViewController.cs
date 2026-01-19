@@ -382,71 +382,80 @@ namespace CoopView
                     }
                 }
 
-                if (secondWindowActive && (rawImageObject == null || uiRawImageObject == null))
+                if (secondWindowActive)
                 {
                     UpdateSecondWindowPixelSize();
 
-                    renderTexture = new RenderTexture(WindowManager.startupWidth, WindowManager.startupHeight, 0, RenderTextureFormat.ARGB32);
-                    renderTexture.enableRandomWrite = true;
-                    renderTexture.filterMode = FilterMode.Point;
-                    renderTexture.useMipMap = false;
-                    renderTexture.Create();
+                    if (rawImageObject == null)
+                    {
+                        renderTexture = new RenderTexture(WindowManager.startupWidth, WindowManager.startupHeight, 0, RenderTextureFormat.ARGB32);
+                        renderTexture.enableRandomWrite = true;
+                        renderTexture.filterMode = FilterMode.Point;
+                        renderTexture.useMipMap = false;
+                        renderTexture.Create();
 
-                    rawImageObject = new GameObject("rawImage");
-                    DontDestroyOnLoad(rawImageObject);
-                    rawImageObject.transform.SetParent(canvasObject.transform);
-                    rawImageObject.gameObject.layer = canvasObject.gameObject.layer;
-                    rawImageObject.transform.position = canvasObject.transform.position.WithZ(-100f);
-                    rawImage = rawImageObject.AddComponent<RawImage>();
-                    RectTransform rectTransform = rawImageObject.GetComponent<RectTransform>();
-                    rectTransform.sizeDelta = new Vector2(Mathf.RoundToInt((float)secondWindowPixelWidth * WindowManager.referenceSecondWindowWidth / WindowManager.SecondWindowWidth), Mathf.RoundToInt((float)secondWindowPixelHeight * WindowManager.referenceSecondWindowHeight / WindowManager.SecondWindowHeight));
-                    rectTransform.anchoredPosition = Vector2.zero;
-                    rawImage.raycastTarget = false;
-                    rawImage.texture = renderTexture;
-                    rawImage.material = ignoreAlphaMaterial;
+                        rawImageObject = new GameObject("rawImage");
+                        DontDestroyOnLoad(rawImageObject);
+                        rawImageObject.transform.SetParent(canvasObject.transform);
+                        rawImageObject.gameObject.layer = canvasObject.gameObject.layer;
+                        rawImageObject.transform.position = canvasObject.transform.position.WithZ(-100f);
+                        rawImage = rawImageObject.AddComponent<RawImage>();
+                        RectTransform rectTransform = rawImageObject.GetComponent<RectTransform>();
+                        rectTransform.sizeDelta = new Vector2(Mathf.RoundToInt((float)secondWindowPixelWidth * WindowManager.referenceSecondWindowWidth / WindowManager.SecondWindowWidth), Mathf.RoundToInt((float)secondWindowPixelHeight * WindowManager.referenceSecondWindowHeight / WindowManager.SecondWindowHeight));
+                        rectTransform.anchoredPosition = Vector2.zero;
+                        rawImage.raycastTarget = false;
+                        rawImage.texture = renderTexture;
+                        rawImage.material = ignoreAlphaMaterial;
+                    }
 
-                    uiRenderTexture = new RenderTexture(Mathf.RoundToInt((float)secondWindowPixelWidth / originalCamera.rect.width), Mathf.RoundToInt((float)secondWindowPixelHeight / originalCamera.rect.height), 0, RenderTextureFormat.ARGB32);
-                    uiRenderTexture.enableRandomWrite = true;
-                    uiRenderTexture.filterMode = FilterMode.Point;
-                    uiRenderTexture.useMipMap = false;
-                    uiRenderTexture.Create();
+                    if (uiRawImageObject == null)
+                    {
+                        uiRenderTexture = new RenderTexture(Mathf.RoundToInt((float)secondWindowPixelWidth / originalCamera.rect.width), Mathf.RoundToInt((float)secondWindowPixelHeight / originalCamera.rect.height), 0, RenderTextureFormat.ARGB32);
+                        uiRenderTexture.enableRandomWrite = true;
+                        uiRenderTexture.filterMode = FilterMode.Point;
+                        uiRenderTexture.useMipMap = false;
+                        uiRenderTexture.Create();
 
-                    uiRawImageObject = new GameObject("uiRawImage");
-                    DontDestroyOnLoad(uiRawImageObject);
-                    uiRawImageObject.transform.SetParent(canvasObject.transform);
-                    uiRawImageObject.gameObject.layer = canvasObject.gameObject.layer;
-                    uiRawImageObject.transform.position = canvasObject.transform.position.WithZ(-100f);
-                    uiRawImage = uiRawImageObject.AddComponent<RawImage>();
-                    RectTransform uiRectTransform = uiRawImageObject.GetComponent<RectTransform>();
-                    uiRectTransform.sizeDelta = new Vector2(Mathf.RoundToInt((float)secondWindowPixelWidth / originalCamera.rect.width * WindowManager.referenceSecondWindowWidth / WindowManager.SecondWindowWidth), Mathf.RoundToInt((float)secondWindowPixelHeight / originalCamera.rect.height * WindowManager.referenceSecondWindowHeight / WindowManager.SecondWindowHeight));
-                    uiRectTransform.anchoredPosition = Vector2.zero;
-                    uiRawImage.raycastTarget = false;
-                    uiRawImage.texture = uiRenderTexture;
-                    uiRawImage.material = overlayOnBackgroundMaterialNotBrighter;
+                        uiRawImageObject = new GameObject("uiRawImage");
+                        DontDestroyOnLoad(uiRawImageObject);
+                        uiRawImageObject.transform.SetParent(canvasObject.transform);
+                        uiRawImageObject.gameObject.layer = canvasObject.gameObject.layer;
+                        uiRawImageObject.transform.position = canvasObject.transform.position.WithZ(-100f);
+                        uiRawImage = uiRawImageObject.AddComponent<RawImage>();
+                        RectTransform uiRectTransform = uiRawImageObject.GetComponent<RectTransform>();
+                        uiRectTransform.sizeDelta = new Vector2(Mathf.RoundToInt((float)secondWindowPixelWidth / originalCamera.rect.width * WindowManager.referenceSecondWindowWidth / WindowManager.SecondWindowWidth), Mathf.RoundToInt((float)secondWindowPixelHeight / originalCamera.rect.height * WindowManager.referenceSecondWindowHeight / WindowManager.SecondWindowHeight));
+                        uiRectTransform.anchoredPosition = Vector2.zero;
+                        uiRawImage.raycastTarget = false;
+                        uiRawImage.texture = uiRenderTexture;
+                        uiRawImage.material = overlayOnBackgroundMaterialNotBrighter;
+                    }
 
 
                     if (simplestatsLoaded)
                     {
-                        overlayRenderTexture = new RenderTexture(1920, 1080, 0, RenderTextureFormat.ARGB32);
-                        overlayRenderTexture.enableRandomWrite = true;
-                        overlayRenderTexture.filterMode = FilterMode.Point;
-                        overlayRenderTexture.useMipMap = false;
-                        overlayRenderTexture.antiAliasing = 1;
-                        overlayRenderTexture.anisoLevel = 0;
-                        overlayRenderTexture.Create();
+                        if (overlayRawImageObject == null)
+                        {
+                            overlayRenderTexture = new RenderTexture(1920, 1080, 0, RenderTextureFormat.ARGB32);
+                            overlayRenderTexture.enableRandomWrite = true;
+                            overlayRenderTexture.filterMode = FilterMode.Point;
+                            overlayRenderTexture.useMipMap = false;
+                            overlayRenderTexture.antiAliasing = 1;
+                            overlayRenderTexture.anisoLevel = 0;
+                            overlayRenderTexture.Create();
 
-                        overlayRawImageObject = new GameObject("overlayRawImage");
-                        DontDestroyOnLoad(overlayRawImageObject);
-                        overlayRawImageObject.transform.SetParent(canvasObject.transform);
-                        overlayRawImageObject.gameObject.layer = canvasObject.gameObject.layer;
-                        overlayRawImageObject.transform.position = canvasObject.transform.position.WithZ(-100f);
-                        overlayRawImage = overlayRawImageObject.AddComponent<RawImage>();
-                        RectTransform overlayRectTransform = overlayRawImageObject.GetComponent<RectTransform>();
-                        overlayRectTransform.sizeDelta = new Vector2(Mathf.RoundToInt((float)secondWindowPixelWidth * WindowManager.referenceSecondWindowWidth / WindowManager.SecondWindowWidth), Mathf.RoundToInt((float)secondWindowPixelHeight * WindowManager.referenceSecondWindowHeight / WindowManager.SecondWindowHeight));
-                        overlayRectTransform.anchoredPosition = Vector2.zero;
-                        overlayRawImage.raycastTarget = false;
-                        overlayRawImage.texture = overlayRenderTexture;
-                        overlayRawImage.material = overlayOnBackgroundMaterial;
+                            overlayRawImageObject = new GameObject("overlayRawImage");
+                            DontDestroyOnLoad(overlayRawImageObject);
+                            overlayRawImageObject.transform.SetParent(canvasObject.transform);
+                            overlayRawImageObject.gameObject.layer = canvasObject.gameObject.layer;
+                            overlayRawImageObject.transform.position = canvasObject.transform.position.WithZ(-100f);
+                            overlayRawImage = overlayRawImageObject.AddComponent<RawImage>();
+                            RectTransform overlayRectTransform = overlayRawImageObject.GetComponent<RectTransform>();
+                            overlayRectTransform.sizeDelta = new Vector2(Mathf.RoundToInt((float)secondWindowPixelWidth * WindowManager.referenceSecondWindowWidth / WindowManager.SecondWindowWidth), Mathf.RoundToInt((float)secondWindowPixelHeight * WindowManager.referenceSecondWindowHeight / WindowManager.SecondWindowHeight));
+                            overlayRectTransform.anchoredPosition = Vector2.zero;
+                            overlayRawImage.raycastTarget = false;
+                            overlayRawImage.texture = overlayRenderTexture;
+                            overlayRawImage.material = overlayOnBackgroundMaterial;
+                        }
 
 
                         if (uiMainDisplayCamera != null)
