@@ -11,8 +11,8 @@ namespace CoopView
 {
     class ViewController : MonoBehaviour
     {
-        internal static GameObject canvasObject;
-        internal static Canvas canvas;
+        private static GameObject canvasObject;
+        private static Canvas canvas;
 
         private static GameObject rawImageObject;
         private static RawImage rawImage;
@@ -424,29 +424,31 @@ namespace CoopView
                     uiRawImage.texture = uiRenderTexture;
                     uiRawImage.material = overlayOnBackgroundMaterialNotBrighter;
 
-                    overlayRenderTexture = new RenderTexture(1920, 1080, 0, RenderTextureFormat.ARGB32);
-                    overlayRenderTexture.enableRandomWrite = true;
-                    overlayRenderTexture.filterMode = FilterMode.Point;
-                    overlayRenderTexture.useMipMap = false;
-                    overlayRenderTexture.antiAliasing = 1;
-                    overlayRenderTexture.anisoLevel = 0;
-                    overlayRenderTexture.Create();
-
-                    overlayRawImageObject = new GameObject("overlayRawImage");
-                    DontDestroyOnLoad(overlayRawImageObject);
-                    overlayRawImageObject.transform.SetParent(canvasObject.transform);
-                    overlayRawImageObject.gameObject.layer = canvasObject.gameObject.layer;
-                    overlayRawImageObject.transform.position = canvasObject.transform.position.WithZ(-100f);
-                    overlayRawImage = overlayRawImageObject.AddComponent<RawImage>();
-                    RectTransform overlayRectTransform = overlayRawImageObject.GetComponent<RectTransform>();
-                    overlayRectTransform.sizeDelta = new Vector2(Mathf.RoundToInt((float)secondWindowPixelWidth * WindowManager.referenceSecondWindowWidth / WindowManager.SecondWindowWidth), Mathf.RoundToInt((float)secondWindowPixelHeight * WindowManager.referenceSecondWindowHeight / WindowManager.SecondWindowHeight));
-                    overlayRectTransform.anchoredPosition = Vector2.zero;
-                    overlayRawImage.raycastTarget = false;
-                    overlayRawImage.texture = overlayRenderTexture;
-                    overlayRawImage.material = overlayOnBackgroundMaterial;
 
                     if (simplestatsLoaded)
                     {
+                        overlayRenderTexture = new RenderTexture(1920, 1080, 0, RenderTextureFormat.ARGB32);
+                        overlayRenderTexture.enableRandomWrite = true;
+                        overlayRenderTexture.filterMode = FilterMode.Point;
+                        overlayRenderTexture.useMipMap = false;
+                        overlayRenderTexture.antiAliasing = 1;
+                        overlayRenderTexture.anisoLevel = 0;
+                        overlayRenderTexture.Create();
+
+                        overlayRawImageObject = new GameObject("overlayRawImage");
+                        DontDestroyOnLoad(overlayRawImageObject);
+                        overlayRawImageObject.transform.SetParent(canvasObject.transform);
+                        overlayRawImageObject.gameObject.layer = canvasObject.gameObject.layer;
+                        overlayRawImageObject.transform.position = canvasObject.transform.position.WithZ(-100f);
+                        overlayRawImage = overlayRawImageObject.AddComponent<RawImage>();
+                        RectTransform overlayRectTransform = overlayRawImageObject.GetComponent<RectTransform>();
+                        overlayRectTransform.sizeDelta = new Vector2(Mathf.RoundToInt((float)secondWindowPixelWidth * WindowManager.referenceSecondWindowWidth / WindowManager.SecondWindowWidth), Mathf.RoundToInt((float)secondWindowPixelHeight * WindowManager.referenceSecondWindowHeight / WindowManager.SecondWindowHeight));
+                        overlayRectTransform.anchoredPosition = Vector2.zero;
+                        overlayRawImage.raycastTarget = false;
+                        overlayRawImage.texture = overlayRenderTexture;
+                        overlayRawImage.material = overlayOnBackgroundMaterial;
+
+
                         if (uiMainDisplayCamera != null)
                             uiMainDisplayCamera.GetComponent<MultiDisplayCanvasFitter>()?.ForceRefresh();
 
@@ -743,6 +745,11 @@ namespace CoopView
                 uiRenderTexture.Release();
                 uiRenderTexture = null;
             }
+            if (overlayRenderTexture != null)
+            {
+                overlayRenderTexture.Release();
+                overlayRenderTexture = null;
+            }
             if (rawImageObject != null)
             {
                 Destroy(rawImageObject);
@@ -754,6 +761,12 @@ namespace CoopView
                 Destroy(uiRawImageObject);
                 uiRawImage = null;
                 uiRawImageObject = null;
+            }
+            if (overlayRawImageObject != null)
+            {
+                Destroy(overlayRawImageObject);
+                overlayRawImage = null;
+                overlayRawImageObject = null;
             }
             if (mainCameraUiRootObject != null)
             {
@@ -769,6 +782,7 @@ namespace CoopView
             {
                 Destroy(worldCursorObject);
                 worldCursorObject = null;
+                worldCursorController = null;
             }
             if (simplestatsLoaded && uiSecondDisplayCamera != null)
             {
