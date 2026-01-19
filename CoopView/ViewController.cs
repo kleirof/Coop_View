@@ -11,8 +11,8 @@ namespace CoopView
 {
     class ViewController : MonoBehaviour
     {
-        private static GameObject canvasObject;
-        private static Canvas canvas;
+        internal static GameObject canvasObject;
+        internal static Canvas canvas;
 
         private static GameObject rawImageObject;
         private static RawImage rawImage;
@@ -21,6 +21,10 @@ namespace CoopView
         private static GameObject uiRawImageObject;
         private static RawImage uiRawImage;
         internal static RenderTexture uiRenderTexture;
+
+        private static GameObject overlayRawImageObject;
+        private static RawImage overlayRawImage;
+        internal static RenderTexture overlayRenderTexture;
 
         internal static Pixelator originCameraPixelator;
         internal static Pixelator cameraPixelator;
@@ -65,6 +69,9 @@ namespace CoopView
         internal static AssetBundle coopViewAssets;
         private static Shader ignoreAlphaShader;
         private static Material ignoreAlphaMaterial;
+        private static Shader overlayOnBackgroundShader;
+        private static Material overlayOnBackgroundMaterial;
+        private static Material overlayOnBackgroundMaterialNotBrighter;
 
         internal static bool waitingForRestoringCaption = true;
 
@@ -97,7 +104,7 @@ namespace CoopView
         internal static Camera uiMainDisplayCamera;
         internal static Camera uiSecondDisplayCamera;
         private static WorldCursorController worldCursorController;
-        private static GameObject worldCursorObject;
+        internal static GameObject worldCursorObject;
 
         internal static bool simplestatsLoaded;
 
@@ -134,7 +141,7 @@ namespace CoopView
                 canvas.gameObject.layer = wsLayer;
 
                 RectTransform rt = canvas.GetComponent<RectTransform>();
-                rt.sizeDelta = new Vector2(1920, 1080);
+                rt.sizeDelta = new Vector2(WindowManager.referenceSecondWindowWidth, WindowManager.referenceSecondWindowHeight);
 
                 canvas.transform.position = new Vector3(0, 0, -100);
 
@@ -144,7 +151,7 @@ namespace CoopView
                 Camera canvasCamera = canvasCameraObject.AddComponent<Camera>();
                 canvasCamera.targetDisplay = 1;
                 canvasCamera.orthographic = true;
-                canvasCamera.orthographicSize = 540;
+                canvasCamera.orthographicSize = WindowManager.referenceSecondWindowHeight * 0.5f;
                 canvasCamera.clearFlags = CameraClearFlags.Depth;
                 canvasCamera.backgroundColor = Color.clear;
                 canvasCamera.cullingMask = 1 << wsLayer;
@@ -156,8 +163,7 @@ namespace CoopView
                 canvasCamera.transform.rotation = Quaternion.identity;
 
                 Camera mainCam = Camera.main;
-                if (mainCam != null)
-                    mainCam.cullingMask &= ~(1 << wsLayer);
+                ExcludeGameObjectLayerFromCamera(mainCam, canvasObject);
 
                 GameObject clearCameraObject = new GameObject("Coop View Clear Camera");
                 DontDestroyOnLoad(clearCameraObject);
@@ -188,6 +194,13 @@ namespace CoopView
 
                 ignoreAlphaShader = coopViewAssets.LoadAsset<Shader>("IgnoreAlpha");
                 ignoreAlphaMaterial = new Material(ignoreAlphaShader);
+
+                overlayOnBackgroundShader = coopViewAssets.LoadAsset<Shader>("OverlayOnBackground");
+                overlayOnBackgroundMaterial = new Material(overlayOnBackgroundShader);
+
+                overlayOnBackgroundMaterialNotBrighter = new Material(overlayOnBackgroundShader);
+                overlayOnBackgroundMaterialNotBrighter.SetFloat("_Brightness", 1f);
+                overlayOnBackgroundMaterialNotBrighter.SetFloat("_AlphaMultiplier", 3.6f);
 
                 ChangeMouseSensitivityMultipliers();
             }
@@ -243,6 +256,7 @@ namespace CoopView
                     if (weirdoUiObject != null)
                     {
                         weirdoUiCamera = weirdoUiObject.GetComponent<Camera>();
+                        ExcludeGameObjectLayerFromCamera(weirdoUiCamera, canvasObject);
                         clearable = true;
                     }
                 }
@@ -296,6 +310,8 @@ namespace CoopView
                         {
                             UpdateSecondWindowPixelSize();
                         }
+
+                        ExcludeGameObjectLayerFromCamera(originalCamera, canvasObject);
                         clearable = true;
                     }
                 }
@@ -312,6 +328,7 @@ namespace CoopView
                             camera.targetTexture = renderTexture;
                             cameraController = camera.GetComponent<CameraController>();
                             cameraPixelator = camera.GetComponent<Pixelator>();
+                            ExcludeGameObjectLayerFromCamera(camera, canvasObject);
                             clearable = true;
                         }
                     }
@@ -325,6 +342,7 @@ namespace CoopView
                         uiCamera = uiRootObject.GetComponentInChildren<Camera>();
                         if (Minimap.HasInstance)
                             Minimap.Instance.ToggleMinimap(false, false);
+                        ExcludeGameObjectLayerFromCamera(uiCamera, canvasObject);
                         clearable = true;
                     }
                 }
@@ -335,6 +353,7 @@ namespace CoopView
                     if (minimapRootObject != null)
                     {
                         minimapUiCamera = minimapRootObject.GetComponentInChildren<Camera>();
+                        ExcludeGameObjectLayerFromCamera(minimapUiCamera, canvasObject);
                         clearable = true;
                     }
                 }
@@ -347,6 +366,7 @@ namespace CoopView
                         GameObject cameraObject = minimapObject.transform.Find("Minimap Camera").gameObject;
                         minimapCamera = cameraObject.GetComponentInChildren<Camera>();
                         minimapCamera.GetComponent<MinimapRenderer>().QuadTransform.gameObject.SetLayerRecursively(LayerMask.NameToLayer("GUI_InventoryBoxes"));
+                        ExcludeGameObjectLayerFromCamera(minimapCamera, canvasObject);
                         clearable = true;
                     }
                 }
@@ -357,17 +377,9 @@ namespace CoopView
                     if (ammoRootObject != null)
                     {
                         ammoCamera = ammoRootObject.GetComponentInChildren<Camera>();
+                        ExcludeGameObjectLayerFromCamera(ammoCamera, canvasObject);
                         clearable = true;
                     }
-                }
-
-                if (worldCursorController == null)
-                {
-                    worldCursorObject = new GameObject("WorldCursor");
-                    DontDestroyOnLoad(worldCursorObject);
-                    worldCursorObject.layer = LayerMask.NameToLayer("Default");
-
-                    worldCursorController = worldCursorObject.AddComponent<WorldCursorController>();
                 }
 
                 if (secondWindowActive && (rawImageObject == null || uiRawImageObject == null))
@@ -384,7 +396,7 @@ namespace CoopView
                     DontDestroyOnLoad(rawImageObject);
                     rawImageObject.transform.SetParent(canvasObject.transform);
                     rawImageObject.gameObject.layer = canvasObject.gameObject.layer;
-                    rawImageObject.transform.position = canvasObject.transform.position.WithZ(-102f);
+                    rawImageObject.transform.position = canvasObject.transform.position.WithZ(-100f);
                     rawImage = rawImageObject.AddComponent<RawImage>();
                     RectTransform rectTransform = rawImageObject.GetComponent<RectTransform>();
                     rectTransform.sizeDelta = new Vector2(Mathf.RoundToInt((float)secondWindowPixelWidth * WindowManager.referenceSecondWindowWidth / WindowManager.SecondWindowWidth), Mathf.RoundToInt((float)secondWindowPixelHeight * WindowManager.referenceSecondWindowHeight / WindowManager.SecondWindowHeight));
@@ -410,6 +422,28 @@ namespace CoopView
                     uiRectTransform.anchoredPosition = Vector2.zero;
                     uiRawImage.raycastTarget = false;
                     uiRawImage.texture = uiRenderTexture;
+                    uiRawImage.material = overlayOnBackgroundMaterialNotBrighter;
+
+                    overlayRenderTexture = new RenderTexture(1920, 1080, 0, RenderTextureFormat.ARGB32);
+                    overlayRenderTexture.enableRandomWrite = true;
+                    overlayRenderTexture.filterMode = FilterMode.Point;
+                    overlayRenderTexture.useMipMap = false;
+                    overlayRenderTexture.antiAliasing = 1;
+                    overlayRenderTexture.anisoLevel = 0;
+                    overlayRenderTexture.Create();
+
+                    overlayRawImageObject = new GameObject("overlayRawImage");
+                    DontDestroyOnLoad(overlayRawImageObject);
+                    overlayRawImageObject.transform.SetParent(canvasObject.transform);
+                    overlayRawImageObject.gameObject.layer = canvasObject.gameObject.layer;
+                    overlayRawImageObject.transform.position = canvasObject.transform.position.WithZ(-100f);
+                    overlayRawImage = overlayRawImageObject.AddComponent<RawImage>();
+                    RectTransform overlayRectTransform = overlayRawImageObject.GetComponent<RectTransform>();
+                    overlayRectTransform.sizeDelta = new Vector2(Mathf.RoundToInt((float)secondWindowPixelWidth * WindowManager.referenceSecondWindowWidth / WindowManager.SecondWindowWidth), Mathf.RoundToInt((float)secondWindowPixelHeight * WindowManager.referenceSecondWindowHeight / WindowManager.SecondWindowHeight));
+                    overlayRectTransform.anchoredPosition = Vector2.zero;
+                    overlayRawImage.raycastTarget = false;
+                    overlayRawImage.texture = overlayRenderTexture;
+                    overlayRawImage.material = overlayOnBackgroundMaterial;
 
                     if (simplestatsLoaded)
                     {
@@ -418,10 +452,23 @@ namespace CoopView
 
                         if (uiSecondDisplayCamera != null)
                         {
+                            uiSecondDisplayCamera.targetTexture = overlayRenderTexture;
+
                             uiSecondDisplayCamera.GetComponent<MultiDisplayCanvasFitter>()?.ForceRefresh();
                             uiSecondDisplayCamera.enabled = true;
                         }
                     }
+
+                    clearable = true;
+                }
+
+                if (worldCursorController == null)
+                {
+                    worldCursorObject = new GameObject("WorldCursor");
+                    worldCursorObject.transform.SetParent(canvasObject.transform);
+                    worldCursorObject.layer = canvasObject.gameObject.layer;
+
+                    worldCursorController = worldCursorObject.AddComponent<WorldCursorController>();
 
                     clearable = true;
 
@@ -447,6 +494,11 @@ namespace CoopView
                     if (camera != null)
                     {
                         camera.aspect = 16f / 9;
+                    }
+
+                    if (simpleStatsCanvas != null)
+                    {
+                        simpleStatsCanvas.renderMode = RenderMode.WorldSpace;
                     }
 
                     if ((GameManager.Instance.IsPaused || GameManager.Instance.IsLoadingLevel || AmmonomiconController.Instance.IsOpen) && uiRenderTexture != null)
@@ -720,6 +772,7 @@ namespace CoopView
             }
             if (simplestatsLoaded && uiSecondDisplayCamera != null)
             {
+                uiSecondDisplayCamera.targetTexture = null;
                 uiSecondDisplayCamera.enabled = false;
             }
 
@@ -779,6 +832,12 @@ namespace CoopView
                 yield return null;
                 uiRawImage.color = Color.white;
                 uiRawImage.texture = uiRenderTexture;
+            }
+
+            if (overlayRawImageObject != null)
+            {
+                RectTransform rectTransform = overlayRawImageObject.GetComponent<RectTransform>();
+                rectTransform.sizeDelta = new Vector2(Mathf.RoundToInt((float)secondWindowPixelWidth * WindowManager.referenceSecondWindowWidth / WindowManager.SecondWindowWidth), Mathf.RoundToInt((float)secondWindowPixelHeight * WindowManager.referenceSecondWindowHeight / WindowManager.SecondWindowHeight));
             }
 
             if (originalCamera != null)
@@ -974,6 +1033,12 @@ namespace CoopView
                 secondWindowPixelWidth = (int)(WindowManager.SecondWindowHeight * (float)16 / 9);
                 secondWindowPixelHeight = WindowManager.SecondWindowHeight;
             }
+        }
+
+        private void ExcludeGameObjectLayerFromCamera(Camera camera, GameObject gameObject)
+        {
+            if (camera != null && gameObject != null)
+                camera.cullingMask &= ~(1 << gameObject.layer);
         }
     }
 }

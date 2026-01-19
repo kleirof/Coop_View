@@ -8,31 +8,18 @@ namespace CoopView
     {
         private RawImage cursorImage;
         private RectTransform cursorRect;
-        private Canvas cursorCanvas;
 
         public void Start()
         {
             if (cursorImage != null) return;
 
-            GameObject canvasObj = new GameObject("CursorCanvas");
-            canvasObj.transform.SetParent(this.transform);
-            DontDestroyOnLoad(canvasObj);
-
-            cursorCanvas = canvasObj.AddComponent<Canvas>();
-            cursorCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            cursorCanvas.targetDisplay = 1;
-            cursorCanvas.sortingOrder = 9999;
-
-            GameObject cursorObj = new GameObject("WorldCursorRawImage");
-            cursorObj.transform.SetParent(canvasObj.transform);
-
-            cursorImage = cursorObj.AddComponent<RawImage>();
+            cursorImage = ViewController.worldCursorObject.AddComponent<RawImage>();
             cursorImage.raycastTarget = false;
 
             cursorImage.color = new Color(1f, 1f, 1f, 1f);
             cursorImage.material = null;
 
-            cursorRect = cursorObj.GetComponent<RectTransform>();
+            cursorRect = ViewController.worldCursorObject.GetComponent<RectTransform>();
             cursorRect.pivot = new Vector2(0.5f, 0.5f);
             cursorRect.sizeDelta = new Vector2(0f, 0f);
         }
@@ -40,7 +27,7 @@ namespace CoopView
         public void UpdateCursorPosition(Vector2 screenPos)
         {
             if (cursorRect == null) return;
-            cursorRect.position = new Vector3(screenPos.x, screenPos.y, 0);
+            cursorRect.position = new Vector3(Mathf.RoundToInt(screenPos.x), Mathf.RoundToInt(screenPos.y), 0);
         }
 
         public void SetCursor(Texture2D tex, Color color, float scale, float widthScale = 1f, float heightScale = 1f)
@@ -51,7 +38,8 @@ namespace CoopView
 
             Color opaqueColor = new Color(color.r, color.g, color.b, color.a) * 2f;
             cursorImage.color = opaqueColor;
-            cursorImage.texture = tex;
+            if (cursorImage.texture != tex)
+                cursorImage.texture = tex;
             cursorImage.material = null;
 
             if (cursorRect != null)
@@ -73,6 +61,8 @@ namespace CoopView
             if (!GameManager.HasInstance)
                 return;
             if (ViewController.gameCursorController == null)
+                return;
+            if (!enabled)
                 return;
 
             bool hasCursorToDraw = false;
@@ -160,11 +150,11 @@ namespace CoopView
             float scaleY = (float)ViewController.secondWindowPixelHeight / secondWindowHeight;
 
             float screenX = ((mousePosition.x + 0.5f - (Screen.width - mainPixelWidth) * 0.5f) / mainPixelWidth * scaleX
-                + (float)(secondWindowWitdh - ViewController.secondWindowPixelWidth) / secondWindowWitdh * 0.5f) * WindowManager.referenceSecondWindowWidth;
+                - (float)ViewController.secondWindowPixelWidth / secondWindowWitdh * 0.5f) * WindowManager.referenceSecondWindowWidth;
             float screenY = ((mousePosition.y + 0.5f - (Screen.height - mainPixelHeight) * 0.5f) / mainPixelHeight * scaleY
-                + (float)(secondWindowHeight - ViewController.secondWindowPixelHeight) / secondWindowHeight * 0.5f) * WindowManager.referenceSecondWindowHeight;
+                - (float)ViewController.secondWindowPixelHeight / secondWindowHeight * 0.5f) * WindowManager.referenceSecondWindowHeight;
 
-            SetCursor(tex, color, pixelScale, scaleX, scaleY);
+            SetCursor(tex, color, pixelScale, scaleX / 1920 * WindowManager.referenceSecondWindowWidth, scaleY / 1080 * WindowManager.referenceSecondWindowHeight);
             UpdateCursorPosition(new Vector2(screenX, screenY));
 
             return true;
@@ -236,12 +226,12 @@ namespace CoopView
             float scaleX = (float)ViewController.secondWindowPixelWidth / secondWindowWitdh;
             float scaleY = (float)ViewController.secondWindowPixelHeight / secondWindowHeight;
 
-            float screenX = ((vector3.x + 0.5f - (Screen.width - mainPixelWidth) * 0.5f) / mainPixelWidth * scaleX
-                + (float)(secondWindowWitdh - ViewController.secondWindowPixelWidth) / secondWindowWitdh * 0.5f) * WindowManager.referenceSecondWindowWidth;
-            float screenY = ((vector3.y + 0.5f - (Screen.height - mainPixelHeight) * 0.5f) / mainPixelHeight * scaleY
-                + (float)(secondWindowHeight - ViewController.secondWindowPixelHeight) / secondWindowHeight * 0.5f) * WindowManager.referenceSecondWindowHeight;
+            float screenX = (((vector3.x + 0.5f) / Camera.main.rect.width - (Screen.width - mainPixelWidth) * 0.5f) / mainPixelWidth * scaleX
+                - (float)ViewController.secondWindowPixelWidth / secondWindowWitdh * 0.5f) * WindowManager.referenceSecondWindowWidth;
+            float screenY = (((vector3.y + 0.5f) / Camera.main.rect.height - (Screen.height - mainPixelHeight) * 0.5f) / mainPixelHeight * scaleY
+                - (float)ViewController.secondWindowPixelHeight / secondWindowHeight * 0.5f) * WindowManager.referenceSecondWindowHeight;
 
-            SetCursor(tex, color, pixelScale, scaleX, scaleY);
+            SetCursor(tex, color, pixelScale, scaleX / 1920 * WindowManager.referenceSecondWindowWidth, scaleY / 1080 * WindowManager.referenceSecondWindowHeight);
             UpdateCursorPosition(new Vector2(screenX, screenY));
 
             return true;

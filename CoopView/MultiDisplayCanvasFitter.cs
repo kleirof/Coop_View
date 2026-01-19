@@ -21,7 +21,8 @@ namespace CoopView
             canvas.renderMode = RenderMode.WorldSpace;
 
             RectTransform rt = canvas.GetComponent<RectTransform>();
-            rt.sizeDelta = new Vector2(1920f, 1080f);
+            rt.sizeDelta = new Vector2(1920, 1080);
+
             rt.localScale = Vector3.one;
             rt.position = Vector3.zero;
         }
@@ -35,10 +36,9 @@ namespace CoopView
             DontDestroyOnLoad(camObj);
 
             Camera cam = camObj.AddComponent<Camera>();
-            cam.targetDisplay = displayIndex;
 
             cam.orthographic = true;
-            cam.clearFlags = CameraClearFlags.Depth;
+            cam.clearFlags = displayIndex == 0 ? CameraClearFlags.Depth : CameraClearFlags.Color;
             cam.backgroundColor = Color.clear;
 
             cam.cullingMask = 1 << canvas.gameObject.layer;
@@ -47,12 +47,12 @@ namespace CoopView
             cam.transform.position = new Vector3(0, 0, -1000f);
             cam.transform.rotation = Quaternion.identity;
 
-            camObj.AddComponent<MultiDisplayCanvasFitter>().Init(cam, canvas);
+            camObj.AddComponent<MultiDisplayCanvasFitter>().Init(cam, displayIndex, canvas);
 
             return cam;
         }
 
-        public void Init(Camera camera, Canvas canvas)
+        public void Init(Camera camera, int displayIndex, Canvas canvas)
         {
             this.camera = camera;
             canvasRT = canvas.GetComponent<RectTransform>();
@@ -60,7 +60,7 @@ namespace CoopView
             baseWidth = canvasRT.sizeDelta.x;
             baseHeight = canvasRT.sizeDelta.y;
 
-            displayIndex = camera.targetDisplay;
+            this.displayIndex = displayIndex;
 
             if (displayIndex != 0)
                 this.camera.enabled = false;
@@ -80,9 +80,15 @@ namespace CoopView
 
         private void UpdateDisplay1()
         {
-            int secondWindowHeight = WindowManager.SecondWindowHeight;
-            camera.orthographicSize = baseHeight / ViewController.secondWindowPixelHeight * secondWindowHeight * 0.5f;
-            camera.aspect = (float)WindowManager.SecondWindowWidth / secondWindowHeight;
+            float screenAspect = (float)Screen.width / Screen.height;
+            float baseSize = Mathf.Max(baseHeight * 0.5f, baseWidth * 0.5f / screenAspect);
+            float referenceAspect = 16f / 9;
+            bool isWideScreen = screenAspect >= referenceAspect;
+            Rect cameraRect = Camera.main.rect;
+            float cameraRectDimension = isWideScreen ? cameraRect.width : cameraRect.height;
+            float aspectRatioCorrection = (float)Camera.main.pixelWidth / Camera.main.pixelHeight / referenceAspect;
+
+            camera.orthographicSize = baseSize * cameraRectDimension * aspectRatioCorrection;
         }
 
         public void ForceRefresh()
