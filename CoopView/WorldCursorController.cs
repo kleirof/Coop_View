@@ -150,9 +150,9 @@ namespace CoopView
             float scaleY = (float)ViewController.secondWindowPixelHeight / secondWindowHeight;
 
             float screenX = ((mousePosition.x + 0.5f - (Screen.width - mainPixelWidth) * 0.5f) / mainPixelWidth * scaleX
-                - (float)ViewController.secondWindowPixelWidth / secondWindowWitdh * 0.5f) * WindowManager.referenceSecondWindowWidth;
+                + (float)(secondWindowWitdh - ViewController.secondWindowPixelWidth) / secondWindowWitdh * 0.5f) * WindowManager.referenceSecondWindowWidth;
             float screenY = ((mousePosition.y + 0.5f - (Screen.height - mainPixelHeight) * 0.5f) / mainPixelHeight * scaleY
-                - (float)ViewController.secondWindowPixelHeight / secondWindowHeight * 0.5f) * WindowManager.referenceSecondWindowHeight;
+                + (float)(secondWindowHeight - ViewController.secondWindowPixelHeight) / secondWindowHeight * 0.5f) * WindowManager.referenceSecondWindowHeight;
 
             SetCursor(tex, color, pixelScale, scaleX / 1920 * WindowManager.referenceSecondWindowWidth, scaleY / 1080 * WindowManager.referenceSecondWindowHeight);
             UpdateCursorPosition(new Vector2(screenX, screenY));
@@ -227,9 +227,9 @@ namespace CoopView
             float scaleY = (float)ViewController.secondWindowPixelHeight / secondWindowHeight;
 
             float screenX = (((vector3.x + 0.5f) / Camera.main.rect.width - (Screen.width - mainPixelWidth) * 0.5f) / mainPixelWidth * scaleX
-                - (float)ViewController.secondWindowPixelWidth / secondWindowWitdh * 0.5f) * WindowManager.referenceSecondWindowWidth;
+                + (float)(secondWindowWitdh - ViewController.secondWindowPixelWidth) / secondWindowWitdh * 0.5f) * WindowManager.referenceSecondWindowWidth;
             float screenY = (((vector3.y + 0.5f) / Camera.main.rect.height - (Screen.height - mainPixelHeight) * 0.5f) / mainPixelHeight * scaleY
-                - (float)ViewController.secondWindowPixelHeight / secondWindowHeight * 0.5f) * WindowManager.referenceSecondWindowHeight;
+                + (float)(secondWindowHeight - ViewController.secondWindowPixelHeight) / secondWindowHeight * 0.5f) * WindowManager.referenceSecondWindowHeight;
 
             SetCursor(tex, color, pixelScale, scaleX / 1920 * WindowManager.referenceSecondWindowWidth, scaleY / 1080 * WindowManager.referenceSecondWindowHeight);
             UpdateCursorPosition(new Vector2(screenX, screenY));

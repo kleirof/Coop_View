@@ -135,7 +135,8 @@ namespace CoopView
                 DontDestroyOnLoad(canvasObject);
 
                 canvas = canvasObject.AddComponent<Canvas>();
-                canvas.renderMode = RenderMode.WorldSpace;
+                canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+                canvas.targetDisplay = 1;
 
                 int wsLayer = 31;
                 canvas.gameObject.layer = wsLayer;
@@ -144,23 +145,6 @@ namespace CoopView
                 rt.sizeDelta = new Vector2(WindowManager.referenceSecondWindowWidth, WindowManager.referenceSecondWindowHeight);
 
                 canvas.transform.position = new Vector3(0, 0, -100);
-
-                GameObject canvasCameraObject = new GameObject("Coop View Canvas Camera");
-                DontDestroyOnLoad(canvasCameraObject);
-
-                Camera canvasCamera = canvasCameraObject.AddComponent<Camera>();
-                canvasCamera.targetDisplay = 1;
-                canvasCamera.orthographic = true;
-                canvasCamera.orthographicSize = WindowManager.referenceSecondWindowHeight * 0.5f;
-                canvasCamera.clearFlags = CameraClearFlags.Depth;
-                canvasCamera.backgroundColor = Color.clear;
-                canvasCamera.cullingMask = 1 << wsLayer;
-                canvasCamera.depth = 1000;
-                canvasCamera.nearClipPlane = 0.01f;
-                canvasCamera.farClipPlane = 1000f;
-
-                canvasCamera.transform.position = new Vector3(0, 0, -200);
-                canvasCamera.transform.rotation = Quaternion.identity;
 
                 Camera mainCam = Camera.main;
                 ExcludeGameObjectLayerFromCamera(mainCam, canvasObject);
@@ -390,7 +374,6 @@ namespace CoopView
                     {
                         renderTexture = new RenderTexture(WindowManager.startupWidth, WindowManager.startupHeight, 0, RenderTextureFormat.ARGB32);
                         renderTexture.enableRandomWrite = true;
-                        renderTexture.filterMode = FilterMode.Point;
                         renderTexture.useMipMap = false;
                         renderTexture.Create();
 
@@ -412,7 +395,6 @@ namespace CoopView
                     {
                         uiRenderTexture = new RenderTexture(Mathf.RoundToInt((float)secondWindowPixelWidth / originalCamera.rect.width), Mathf.RoundToInt((float)secondWindowPixelHeight / originalCamera.rect.height), 0, RenderTextureFormat.ARGB32);
                         uiRenderTexture.enableRandomWrite = true;
-                        uiRenderTexture.filterMode = FilterMode.Point;
                         uiRenderTexture.useMipMap = false;
                         uiRenderTexture.Create();
 
@@ -430,14 +412,12 @@ namespace CoopView
                         uiRawImage.material = overlayOnBackgroundMaterialNotBrighter;
                     }
 
-
                     if (simplestatsLoaded)
                     {
                         if (overlayRawImageObject == null)
                         {
                             overlayRenderTexture = new RenderTexture(1920, 1080, 0, RenderTextureFormat.ARGB32);
                             overlayRenderTexture.enableRandomWrite = true;
-                            overlayRenderTexture.filterMode = FilterMode.Point;
                             overlayRenderTexture.useMipMap = false;
                             overlayRenderTexture.antiAliasing = 1;
                             overlayRenderTexture.anisoLevel = 0;
@@ -504,7 +484,7 @@ namespace CoopView
                 {
                     if (camera != null)
                     {
-                        camera.aspect = 16f / 9;
+                        camera.rect = new Rect(0f, 0f, 1f, 1f);
                     }
 
                     if (simpleStatsCanvas != null)
@@ -843,7 +823,6 @@ namespace CoopView
                 uiRenderTexture.Release();
                 uiRenderTexture = new RenderTexture(Mathf.RoundToInt((float)WindowManager.referenceSecondWindowWidth / originalCamera.rect.width), Mathf.RoundToInt((float)WindowManager.referenceSecondWindowHeight / originalCamera.rect.height), 0, RenderTextureFormat.ARGB32);
                 uiRenderTexture.enableRandomWrite = true;
-                uiRenderTexture.filterMode = FilterMode.Point;
                 uiRenderTexture.useMipMap = false;
                 uiRenderTexture.Create();
 
